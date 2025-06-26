@@ -3,7 +3,7 @@ version: "3.8"
 services:
     # MongoDB Service
     mongodb:
-        image: mongo:7.0
+        image: mongo:4.4
         container_name: pajak-mongodb-prod
         restart: unless-stopped
         environment:
@@ -41,6 +41,7 @@ services:
         volumes:
             - ./prisma:/app/prisma:ro
         healthcheck:
+<<<<<<< Updated upstream
             test:
                 [
                     "CMD",
@@ -50,6 +51,9 @@ services:
                     "--spider",
                     "http://localhost:3000/pajakapp/api/health",
                 ]
+=======
+            test: ["CMD", "wget", "--no-verbose", "--tries-1", "--spider", "http://localhost:3000/pajakapp/api/health"]
+>>>>>>> Stashed changes
             interval: 30s
             timeout: 10s
             retries: 3

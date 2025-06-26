@@ -5,8 +5,10 @@ const prisma = new PrismaClient()
 
 export async function GET() {
     try {
-        // Test database connection
-        await prisma.$queryRaw`SELECT 1`
+        // Test database connection with MongoDB-compatible query
+        await prisma.user.findFirst({
+            select: { id: true },
+        })
 
         const healthData = {
             status: "healthy",

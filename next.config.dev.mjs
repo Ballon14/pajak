@@ -1,14 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     output: "standalone",
-    experimental: {
-        outputFileTracingRoot: undefined,
-    },
-    // Development configuration - no base path
-    // basePath: '', // Tidak ada base path untuk development
-    // assetPrefix: '', // Tidak ada asset prefix untuk development
+
+    // Development: tidak ada basePath
+    basePath: "",
+    assetPrefix: "",
+
     // Trailing slash untuk konsistensi
     trailingSlash: false,
+
+    // Experimental features
+    experimental: {
+        appDir: true,
+    },
 }
 
 export default nextConfig

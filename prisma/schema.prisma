@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String      @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  email      String      @unique
+  password   String
+  image      String?
+  taxRecords TaxRecord[] @relation("UserTaxRecords")
+}
+
+model TaxRecord {
+  id      String         @id @default(auto()) @map("_id") @db.ObjectId
+  name    String
+  address String
+  total   Float
+  year    Int
+  userId  String         @db.ObjectId
+  status  TaxRecord_status @default(belum_lunas)
+  user    User           @relation("UserTaxRecords", fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+enum TaxRecord_status {
+  lunas
+  belum_lunas
+  proses
+}

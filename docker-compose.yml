@@ -1,0 +1,49 @@
+version: "3.8"
+
+services:
+    # MongoDB Service
+    mongodb:
+        image: mongo:7.0
+        container_name: pajak-mongodb
+        restart: unless-stopped
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: root
+            MONGO_INITDB_ROOT_PASSWORD: password123
+            MONGO_INITDB_DATABASE: pajak_db
+        ports:
+            - "27017:27017"
+        volumes:
+            - mongodb_data:/data/db
+            - ./setup-mongodb.js:/docker-entrypoint-initdb.d/setup-mongodb.js:ro
+        networks:
+            - pajak-network
+
+    # Next.js Application
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: pajak-nextjs
+        restart: unless-stopped
+        ports:
+            - "3000:3000"
+        environment:
+            - NODE_ENV=production
+            - DATABASE_URL=mongodb://root:password123@mongodb:27017/pajak_db?authSource=admin
+            - NEXTAUTH_URL=http://localhost
+            - NEXTAUTH_SECRET=your-secret-key-here
+            - MONGODB_URI=mongodb://root:password123@mongodb:27017/pajak_db?authSource=admin
+        depends_on:
+            - mongodb
+        networks:
+            - pajak-network
+        volumes:
+            - ./prisma:/app/prisma:ro
+
+volumes:
+    mongodb_data:
+        driver: local
+
+networks:
+    pajak-network:
+        driver: bridge

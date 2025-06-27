@@ -88,3 +88,36 @@ async function setupMongoDB() {
 }
 
 setupMongoDB().catch(console.error)
+
+// Jalankan script ini di mongosh atau mongo shell
+
+// Ganti ke database pajak_nextjs
+use("pajak_nextjs")
+
+// Membuat collection User dan TaxRecord (opsional, MongoDB akan otomatis membuat saat insert pertama)
+db.createCollection("User")
+db.createCollection("TaxRecord")
+
+// Membuat index unik pada email di User
+db.User.createIndex({ email: 1 }, { unique: true })
+
+// Membuat index pada userId di TaxRecord
+db.TaxRecord.createIndex({ userId: 1 })
+
+// Contoh struktur dokumen User
+// {
+//   name: "Nama User",
+//   email: "user@email.com",
+//   password: "hashed_password",
+//   image: "url_gambar_opsional"
+// }
+
+// Contoh struktur dokumen TaxRecord
+// {
+//   name: "Nama Wajib Pajak",
+//   address: "Alamat",
+//   total: 1000000,
+//   year: 2024,
+//   userId: ObjectId("id_user"),
+//   status: "belum_lunas" // atau "lunas", "proses"
+// }

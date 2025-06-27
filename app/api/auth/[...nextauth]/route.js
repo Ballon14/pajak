@@ -3,7 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { connectToDatabase } from "../../../../lib/mongodb"
 
-const handler = NextAuth({
+const authOptions = {
     providers: [
         CredentialsProvider({
             name: "Credentials",
@@ -90,6 +90,8 @@ const handler = NextAuth({
             console.log("User signed out:", session?.user?.email)
         },
     },
-})
+}
 
-export { handler as GET, handler as POST }
+const handler = NextAuth(authOptions)
+
+export { handler as GET, handler as POST, authOptions }

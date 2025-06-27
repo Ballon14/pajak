@@ -8,10 +8,6 @@ const nextConfig = {
     // Trailing slash untuk konsistensi
     trailingSlash: false,
     // Experimental features jika diperlukan
-    experimental: {
-        // Enable jika menggunakan app router
-        appDir: true,
-    },
 }
 
 export default nextConfig

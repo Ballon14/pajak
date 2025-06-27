@@ -117,11 +117,19 @@ export default function Navbar() {
                                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white text-blue-700 font-semibold shadow-md hover:bg-blue-100 transition-all focus:outline-none"
                                 onClick={() => setOpen((v) => !v)}
                             >
-                                <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg uppercase">
-                                    {session.user.name?.[0] ||
-                                        session.user.email?.[0] ||
-                                        "U"}
-                                </span>
+                                {session.user.image ? (
+                                    <img
+                                        src={session.user.image}
+                                        alt="Avatar"
+                                        className="w-8 h-8 rounded-full object-cover border-2 border-blue-600"
+                                    />
+                                ) : (
+                                    <span className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-lg uppercase">
+                                        {session.user.name?.[0] ||
+                                            session.user.email?.[0] ||
+                                            "U"}
+                                    </span>
+                                )}
                                 <span className="hidden sm:block max-w-[120px] truncate">
                                     {session.user.name || session.user.email}
                                 </span>
@@ -146,7 +154,7 @@ export default function Navbar() {
                                         {session.user.email}
                                     </div>
                                     <Link
-                                        href="#"
+                                        href="/dashboard/profile"
                                         className="block px-4 py-2 text-sm text-blue-700 hover:bg-blue-50"
                                     >
                                         Profile

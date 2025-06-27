@@ -573,7 +573,7 @@ export default function ListingDataPage() {
                     {/* Modal Detail & Edit */}
                     {modal.type === "detail" && (
                         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
-                            <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative animate-fadeIn">
+                            <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md relative animate-fadeIn border border-blue-100">
                                 <button
                                     className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-xl font-bold"
                                     onClick={() =>
@@ -582,47 +582,147 @@ export default function ListingDataPage() {
                                 >
                                     ×
                                 </button>
-                                <div className="text-xl font-bold mb-4 text-blue-700">
-                                    Detail Data Pajak
+                                <div className="flex items-center gap-3 mb-4">
+                                    <svg
+                                        width="32"
+                                        height="32"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                    >
+                                        <circle
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            fill="#2563eb"
+                                        />
+                                        <path
+                                            d="M12 6v6l4 2"
+                                            stroke="#fff"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                    </svg>
+                                    <div className="text-2xl font-bold text-blue-700">
+                                        Detail Data Pajak
+                                    </div>
                                 </div>
-                                <div className="flex flex-col gap-2">
-                                    <div>
-                                        <span className="font-semibold">
-                                            Nama:
-                                        </span>{" "}
-                                        {modal.data.name}
+                                <div className="flex flex-col gap-4 mt-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-gray-600 w-24">
+                                            Nama
+                                        </span>
+                                        <span className="text-gray-900">
+                                            {modal.data.name}
+                                        </span>
                                     </div>
-                                    <div>
-                                        <span className="font-semibold">
-                                            Alamat:
-                                        </span>{" "}
-                                        {modal.data.address}
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-gray-600 w-24">
+                                            Alamat
+                                        </span>
+                                        <span className="text-gray-900">
+                                            {modal.data.address}
+                                        </span>
                                     </div>
-                                    <div>
-                                        <span className="font-semibold">
-                                            Tahun:
-                                        </span>{" "}
-                                        {modal.data.year}
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-gray-600 w-24">
+                                            Tahun
+                                        </span>
+                                        <span className="text-gray-900">
+                                            {modal.data.year}
+                                        </span>
                                     </div>
-                                    <div>
-                                        <span className="font-semibold">
-                                            Total:
-                                        </span>{" "}
-                                        Rp{" "}
-                                        {Number(
-                                            modal.data.total
-                                        ).toLocaleString("id-ID")}
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-gray-600 w-24">
+                                            Total
+                                        </span>
+                                        <span className="text-gray-900">
+                                            Rp{" "}
+                                            {Number(
+                                                modal.data.total
+                                            ).toLocaleString("id-ID")}
+                                        </span>
                                     </div>
-                                    <div>
-                                        <span className="font-semibold">
-                                            Status:
-                                        </span>{" "}
-                                        {modal.data.status === "lunas"
-                                            ? "Lunas"
-                                            : modal.data.status ===
-                                              "belum_lunas"
-                                            ? "Belum Lunas"
-                                            : "Proses"}
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-gray-600 w-24">
+                                            Status
+                                        </span>
+                                        {modal.data.status === "lunas" && (
+                                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-semibold">
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <circle
+                                                        cx="12"
+                                                        cy="12"
+                                                        r="10"
+                                                        fill="#dcfce7"
+                                                    />
+                                                    <path
+                                                        d="M8 12l2 2 4-4"
+                                                        stroke="#22c55e"
+                                                        strokeWidth="2"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                    />
+                                                </svg>
+                                                Lunas
+                                            </span>
+                                        )}
+                                        {modal.data.status ===
+                                            "belum_lunas" && (
+                                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-red-100 text-red-700 text-sm font-semibold">
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <circle
+                                                        cx="12"
+                                                        cy="12"
+                                                        r="10"
+                                                        fill="#fee2e2"
+                                                    />
+                                                    <path
+                                                        d="M15 9l-6 6M9 9l6 6"
+                                                        stroke="#ef4444"
+                                                        strokeWidth="2"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                    />
+                                                </svg>
+                                                Belum Lunas
+                                            </span>
+                                        )}
+                                        {modal.data.status === "proses" && (
+                                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-sm font-semibold">
+                                                <svg
+                                                    width="16"
+                                                    height="16"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <circle
+                                                        cx="12"
+                                                        cy="12"
+                                                        r="10"
+                                                        fill="#fef9c3"
+                                                    />
+                                                    <path
+                                                        d="M12 8v4h4"
+                                                        stroke="#eab308"
+                                                        strokeWidth="2"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                    />
+                                                </svg>
+                                                Proses
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -699,7 +799,7 @@ function EditModal({ data, onClose }) {
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
             <form
                 onSubmit={handleSubmit}
-                className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative animate-fadeIn flex flex-col gap-6"
+                className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md relative animate-fadeIn flex flex-col gap-6 border border-blue-100"
             >
                 <button
                     className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-xl font-bold"
@@ -708,30 +808,42 @@ function EditModal({ data, onClose }) {
                 >
                     ×
                 </button>
-                <div>
-                    <div className="text-2xl font-bold mb-1 text-yellow-700">
+                <div className="flex items-center gap-3 mb-2">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" fill="#eab308" />
+                        <path
+                            d="M12 6v6l4 2"
+                            stroke="#fff"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </svg>
+                    <div className="text-2xl font-bold text-yellow-700">
                         Edit Data Pajak
                     </div>
-                    <div className="text-gray-500 text-sm mb-2">
-                        Perbarui data pajak sesuai kebutuhan Anda.
-                    </div>
                 </div>
-                <div className="flex flex-col gap-4">
-                    <label className="font-semibold text-gray-700 flex flex-col gap-1">
+                <div className="text-gray-500 text-sm mb-2">
+                    Perbarui data pajak sesuai kebutuhan Anda.
+                </div>
+                <div className="flex flex-col gap-5 mt-2">
+                    <label className="font-semibold text-gray-700 flex flex-col gap-2">
                         Nama
                         <input
-                            className="input bg-white border-gray-300 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100"
+                            className="input bg-white border-gray-300 focus:border-yellow-500 focus:ring-4 focus:ring-yellow-100 focus:bg-yellow-50 placeholder-gray-400 text-base md:text-lg h-11 md:h-12 px-3 md:px-4 transition-all duration-200 shadow-sm"
                             value={form.name}
                             onChange={(e) =>
                                 setForm((f) => ({ ...f, name: e.target.value }))
                             }
                             required
+                            placeholder="Masukkan nama wajib pajak"
+                            tabIndex={1}
                         />
                     </label>
-                    <label className="font-semibold text-gray-700 flex flex-col gap-1">
+                    <label className="font-semibold text-gray-700 flex flex-col gap-2">
                         Alamat
                         <input
-                            className="input bg-white border-gray-300 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100"
+                            className="input bg-white border-gray-300 focus:border-yellow-500 focus:ring-4 focus:ring-yellow-100 focus:bg-yellow-50 placeholder-gray-400 text-base md:text-lg h-11 md:h-12 px-3 md:px-4 transition-all duration-200 shadow-sm"
                             value={form.address}
                             onChange={(e) =>
                                 setForm((f) => ({
@@ -740,42 +852,53 @@ function EditModal({ data, onClose }) {
                                 }))
                             }
                             required
+                            placeholder="Masukkan alamat lengkap"
+                            tabIndex={2}
                         />
                     </label>
-                    <label className="font-semibold text-gray-700 flex flex-col gap-1">
-                        Total
-                        <input
-                            className="input bg-white border-gray-300 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100"
-                            type="number"
-                            value={form.total}
-                            onChange={(e) =>
-                                setForm((f) => ({
-                                    ...f,
-                                    total: e.target.value,
-                                }))
-                            }
-                            required
-                            min="0"
-                        />
-                    </label>
-                    <label className="font-semibold text-gray-700 flex flex-col gap-1">
-                        Tahun
-                        <input
-                            className="input bg-white border-gray-300 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100"
-                            type="number"
-                            value={form.year}
-                            onChange={(e) =>
-                                setForm((f) => ({ ...f, year: e.target.value }))
-                            }
-                            required
-                            min="2000"
-                            max="2100"
-                        />
-                    </label>
-                    <label className="font-semibold text-gray-700 flex flex-col gap-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <label className="font-semibold text-gray-700 flex flex-col gap-2">
+                            Total
+                            <input
+                                className="input bg-white border-gray-300 focus:border-yellow-500 focus:ring-4 focus:ring-yellow-100 focus:bg-yellow-50 placeholder-gray-400 text-base md:text-lg h-11 md:h-12 px-3 md:px-4 transition-all duration-200 shadow-sm"
+                                type="number"
+                                value={form.total}
+                                onChange={(e) =>
+                                    setForm((f) => ({
+                                        ...f,
+                                        total: e.target.value,
+                                    }))
+                                }
+                                required
+                                min="0"
+                                placeholder="Nominal"
+                                tabIndex={3}
+                            />
+                        </label>
+                        <label className="font-semibold text-gray-700 flex flex-col gap-2">
+                            Tahun
+                            <input
+                                className="input bg-white border-gray-300 focus:border-yellow-500 focus:ring-4 focus:ring-yellow-100 focus:bg-yellow-50 placeholder-gray-400 text-base md:text-lg h-11 md:h-12 px-3 md:px-4 transition-all duration-200 shadow-sm"
+                                type="number"
+                                value={form.year}
+                                onChange={(e) =>
+                                    setForm((f) => ({
+                                        ...f,
+                                        year: e.target.value,
+                                    }))
+                                }
+                                required
+                                min="2000"
+                                max="2100"
+                                placeholder="Tahun"
+                                tabIndex={4}
+                            />
+                        </label>
+                    </div>
+                    <label className="font-semibold text-gray-700 flex flex-col gap-2">
                         Status
                         <select
-                            className="input bg-white border-gray-300 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-100"
+                            className="input bg-white border-gray-300 focus:border-yellow-500 focus:ring-4 focus:ring-yellow-100 focus:bg-yellow-50 text-base md:text-lg h-11 md:h-12 px-3 md:px-4 transition-all duration-200 shadow-sm"
                             value={form.status}
                             onChange={(e) =>
                                 setForm((f) => ({
@@ -784,11 +907,89 @@ function EditModal({ data, onClose }) {
                                 }))
                             }
                             required
+                            tabIndex={5}
                         >
                             <option value="lunas">Lunas</option>
                             <option value="belum_lunas">Belum Lunas</option>
                             <option value="proses">Proses</option>
                         </select>
+                        <div className="mt-2">
+                            {form.status === "lunas" && (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-semibold">
+                                    <svg
+                                        width="16"
+                                        height="16"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            fill="#dcfce7"
+                                        />
+                                        <path
+                                            d="M8 12l2 2 4-4"
+                                            stroke="#22c55e"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                    </svg>
+                                    Lunas
+                                </span>
+                            )}
+                            {form.status === "belum_lunas" && (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-red-100 text-red-700 text-sm font-semibold">
+                                    <svg
+                                        width="16"
+                                        height="16"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            fill="#fee2e2"
+                                        />
+                                        <path
+                                            d="M15 9l-6 6M9 9l6 6"
+                                            stroke="#ef4444"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                    </svg>
+                                    Belum Lunas
+                                </span>
+                            )}
+                            {form.status === "proses" && (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-sm font-semibold">
+                                    <svg
+                                        width="16"
+                                        height="16"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            fill="#fef9c3"
+                                        />
+                                        <path
+                                            d="M12 8v4h4"
+                                            stroke="#eab308"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        />
+                                    </svg>
+                                    Proses
+                                </span>
+                            )}
+                        </div>
                     </label>
                 </div>
                 {error && (
@@ -798,19 +999,42 @@ function EditModal({ data, onClose }) {
                 )}
                 <div className="flex gap-2 mt-2">
                     <button
+                        type="submit"
+                        className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        disabled={loading}
+                    >
+                        {loading && (
+                            <svg
+                                className="animate-spin mr-2"
+                                width="20"
+                                height="20"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                            >
+                                <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="#fff"
+                                    strokeWidth="4"
+                                />
+                                <path
+                                    className="opacity-75"
+                                    fill="#fff"
+                                    d="M4 12a8 8 0 018-8v8z"
+                                />
+                            </svg>
+                        )}
+                        Simpan
+                    </button>
+                    <button
                         type="button"
-                        className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg font-semibold shadow hover:bg-gray-300 transition-all duration-200"
+                        className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg transition-colors duration-200"
                         onClick={onClose}
                         disabled={loading}
                     >
                         Batal
-                    </button>
-                    <button
-                        type="submit"
-                        className="flex-1 bg-yellow-500 text-white py-2 rounded-lg font-semibold shadow hover:bg-yellow-600 transition-all duration-200"
-                        disabled={loading}
-                    >
-                        {loading ? "Menyimpan..." : "Simpan Perubahan"}
                     </button>
                 </div>
             </form>

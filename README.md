@@ -4,6 +4,26 @@ PajakApp adalah aplikasi web modern untuk manajemen data pajak, user, dan admini
 
 ---
 
+## Teknologi & Library
+
+-   **Next.js** v15.3.4 (framework React SSR/SSG)
+-   **React** v19.0.0
+-   **MongoDB** (database utama)
+-   **Prisma** v6.10.1 (ORM untuk MongoDB)
+-   **NextAuth** v4.24.11 (autentikasi & session)
+-   **bcryptjs** v3.0.2 (hash password)
+-   **nodemailer** v6.10.1 (email reset password)
+-   **formidable** v3.5.4 (upload file/avatar)
+-   **chart.js** v4.5.0 & **react-chartjs-2** v5.3.0 (chart statistik)
+-   **jspdf** v3.0.1 & **jspdf-autotable** v5.0.2 (export PDF)
+-   **xlsx** v0.18.5 (export Excel)
+-   **papaparse** v5.5.3 (import/export CSV)
+-   **dayjs** v1.11.13 (format tanggal)
+-   **dotenv** v16.6.0 (env config)
+-   **TailwindCSS** v4 (opsional, styling)
+
+---
+
 ## Fitur Utama
 
 -   **Autentikasi & Otorisasi**: Login, register, reset password, session JWT, admin/user role, status aktif/nonaktif user.
@@ -31,8 +51,8 @@ PajakApp adalah aplikasi web modern untuk manajemen data pajak, user, dan admini
 ### 1. Clone Repository
 
 ```bash
-git clone <repo-url>
-cd pajakapp
+git clone https://github.com/Ballon14/pajak.git
+cd pajak
 ```
 
 ### 2. Install Dependencies

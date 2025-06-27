@@ -20,24 +20,39 @@ const authOptions = {
                         email: credentials.email,
                     })
 
-                    if (!user) return null
+                    if (!user) {
+                        const error = new Error("redirect-register")
+                        error.code = "redirect-register"
+                        throw error
+                    }
+
+                    if (user.isActive === false) {
+                        const error = new Error("nonaktif")
+                        error.code = "nonaktif"
+                        throw error
+                    }
 
                     const isValid = await bcrypt.compare(
                         credentials.password,
                         user.password
                     )
 
-                    if (!isValid) return null
+                    if (!isValid) {
+                        const error = new Error("wrong-credentials")
+                        error.code = "wrong-credentials"
+                        throw error
+                    }
 
                     return {
                         id: user._id.toString(),
                         name: user.name,
                         email: user.email,
                         image: user.image,
+                        role: user.role,
                     }
                 } catch (error) {
-                    console.error("Auth error:", error)
-                    return null
+                    // Forward error message to frontend
+                    throw error
                 }
             },
         }),
@@ -63,12 +78,14 @@ const authOptions = {
                 token.name = user.name
                 token.email = user.email
                 token.image = user.image
+                token.role = user.role
             }
             // Handle update
             if (trigger === "update" && session) {
                 token.name = session.user.name
                 token.email = session.user.email
                 token.image = session.user.image
+                token.role = session.user.role
             }
             return token
         },
@@ -78,6 +95,7 @@ const authOptions = {
                 session.user.name = token.name
                 session.user.email = token.email
                 session.user.image = token.image
+                session.user.role = token.role
             }
             return session
         },

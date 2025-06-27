@@ -1,24 +1,56 @@
 "use client"
-import { useState } from "react"
-import { signIn } from "next-auth/react"
+import { useState, useEffect } from "react"
+import { signIn, useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
+    const { data: session, status } = useSession()
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [error, setError] = useState("")
+    const [showContactAdmin, setShowContactAdmin] = useState(false)
+    const [redirecting, setRedirecting] = useState(false)
     const router = useRouter()
+
+    useEffect(() => {
+        if (session?.user?.role === "admin") {
+            router.replace("/dashboard/admin")
+        }
+    }, [session, router])
 
     const handleSubmit = async (e) => {
         e.preventDefault()
         setError("")
+        setShowContactAdmin(false)
+        setRedirecting(false)
         const res = await signIn("credentials", {
             email,
             password,
             redirect: false,
         })
         if (res.error) {
-            setError("Email atau password salah")
+            if (res.error === "redirect-register") {
+                setError(
+                    "Email belum terdaftar. Anda akan diarahkan ke halaman pendaftaran..."
+                )
+                setRedirecting(true)
+                setTimeout(() => {
+                    router.push("/register")
+                }, 4000)
+                return
+            }
+            if (res.error === "nonaktif") {
+                setError(
+                    "Akun Anda nonaktif. Silakan hubungi admin atau kirim pesan ke admin."
+                )
+                setShowContactAdmin(true)
+                return
+            }
+            if (res.error === "wrong-credentials") {
+                setError("Email atau password salah")
+                return
+            }
+            setError(res.error)
         } else {
             router.push("/dashboard")
         }
@@ -54,8 +86,24 @@ export default function LoginPage() {
                         className="w-full flex flex-col gap-4"
                     >
                         {error && (
-                            <div className="text-red-500 text-center text-sm mb-2">
+                            <div
+                                className={`text-center text-sm mb-2 ${
+                                    redirecting
+                                        ? "text-blue-600"
+                                        : "text-red-500"
+                                }`}
+                            >
                                 {error}
+                                {showContactAdmin && (
+                                    <div className="mt-2">
+                                        <a
+                                            href="mailto:iqbaldev.site@gmail.com"
+                                            className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 font-semibold text-xs mt-1"
+                                        >
+                                            Kirim Pesan ke Admin
+                                        </a>
+                                    </div>
+                                )}
                             </div>
                         )}
                         <div>

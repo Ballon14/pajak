@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs"
 export async function GET() {
     const db = await connectToDatabase()
     const users = await db.collection("User").find({}).toArray()
-    return NextResponse.json(users)
+    return NextResponse.json({ success: true, users })
 }
 
 export async function POST(req) {

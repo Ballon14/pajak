@@ -241,153 +241,213 @@ export default function AdminSidebar({ open, setOpen }) {
                             alignItems: "stretch",
                         }}
                     >
-                        {menus.map((menu) => {
+                        {menus.map((menu, index) => {
                             const isActive = menu.href === pathname
                             const isChatMenu =
                                 menu.href === "/dashboard/admin/chat"
 
                             return (
-                                <Link
-                                    key={menu.href}
-                                    href={menu.href}
-                                    onClick={() => isMobile && setOpen(false)}
-                                    style={{
-                                        ...navStyle,
-                                        background: isActive
-                                            ? "#2563eb"
-                                            : "none",
-                                        color: isActive ? "#fff" : "#c7d2fe",
-                                        justifyContent: "flex-start",
-                                        padding: isMobile
-                                            ? "16px 24px"
-                                            : open
-                                            ? "14px 28px"
-                                            : "14px 0",
-                                        fontSize: isMobile
-                                            ? 18
-                                            : open
-                                            ? 17
-                                            : 22,
-                                        width: "auto",
-                                        minWidth: 0,
-                                        position: "relative",
-                                        transition: "all 0.2s ease",
-                                        borderRadius: isMobile ? 12 : 10,
-                                        margin: isMobile ? "0 12px" : "0",
-                                    }}
-                                    tabIndex={0}
-                                >
-                                    <span
+                                <div key={menu.href}>
+                                    <Link
+                                        href={menu.href}
+                                        onClick={() =>
+                                            isMobile && setOpen(false)
+                                        }
                                         style={{
-                                            marginRight: isMobile
-                                                ? 16
-                                                : open
-                                                ? 12
-                                                : 0,
-                                            fontSize: isMobile ? 24 : 22,
-                                            transition: "margin 0.2s ease",
-                                            position: "relative",
-                                        }}
-                                    >
-                                        {menu.icon}
-                                        {/* Badge notifikasi untuk chat */}
-                                        {isChatMenu && unreadCount > 0 && (
-                                            <span
-                                                style={{
-                                                    position: "absolute",
-                                                    top: -8,
-                                                    right: -8,
-                                                    background: "#ef4444",
-                                                    color: "white",
-                                                    borderRadius: "50%",
-                                                    width: isMobile ? 20 : 18,
-                                                    height: isMobile ? 20 : 18,
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                    fontSize: isMobile
-                                                        ? 11
-                                                        : 10,
-                                                    fontWeight: "bold",
-                                                    animation:
-                                                        "pulse 2s infinite",
-                                                }}
-                                            >
-                                                {unreadCount > 99
-                                                    ? "99+"
-                                                    : unreadCount}
-                                            </span>
-                                        )}
-                                    </span>
-                                    <span
-                                        style={{
-                                            opacity: isMobile
-                                                ? 1
-                                                : open
-                                                ? 1
-                                                : 0,
-                                            maxWidth: isMobile
-                                                ? "none"
-                                                : open
-                                                ? 200
-                                                : 0,
-                                            overflow: "hidden",
-                                            whiteSpace: "nowrap",
-                                            transition: "all 0.3s ease",
-                                            pointerEvents: isMobile
-                                                ? "auto"
-                                                : open
-                                                ? "auto"
+                                            ...navStyle,
+                                            background: isActive
+                                                ? "#2563eb"
                                                 : "none",
-                                            fontWeight: isMobile ? 600 : 600,
+                                            color: isActive
+                                                ? "#fff"
+                                                : "#c7d2fe",
+                                            justifyContent: "flex-start",
+                                            padding: isMobile
+                                                ? "16px 24px"
+                                                : open
+                                                ? "14px 28px"
+                                                : "14px 0",
+                                            fontSize: isMobile
+                                                ? 18
+                                                : open
+                                                ? 17
+                                                : 22,
+                                            width: "auto",
+                                            minWidth: 0,
+                                            position: "relative",
+                                            transition: "all 0.2s ease",
+                                            borderRadius: isMobile ? 12 : 10,
+                                            margin: isMobile ? "0 12px" : "0",
                                         }}
+                                        tabIndex={0}
                                     >
-                                        {menu.label}
-                                    </span>
-                                </Link>
+                                        <span
+                                            style={{
+                                                marginRight: isMobile
+                                                    ? 16
+                                                    : open
+                                                    ? 12
+                                                    : 0,
+                                                fontSize: isMobile ? 24 : 22,
+                                                transition: "margin 0.2s ease",
+                                                position: "relative",
+                                            }}
+                                        >
+                                            {menu.icon}
+                                            {/* Badge notifikasi untuk chat */}
+                                            {isChatMenu && unreadCount > 0 && (
+                                                <span
+                                                    style={{
+                                                        position: "absolute",
+                                                        top: -8,
+                                                        right: -8,
+                                                        background: "#ef4444",
+                                                        color: "white",
+                                                        borderRadius: "50%",
+                                                        width: isMobile
+                                                            ? 20
+                                                            : 18,
+                                                        height: isMobile
+                                                            ? 20
+                                                            : 18,
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        justifyContent:
+                                                            "center",
+                                                        fontSize: isMobile
+                                                            ? 11
+                                                            : 10,
+                                                        fontWeight: "bold",
+                                                        animation:
+                                                            "pulse 2s infinite",
+                                                    }}
+                                                >
+                                                    {unreadCount > 99
+                                                        ? "99+"
+                                                        : unreadCount}
+                                                </span>
+                                            )}
+                                        </span>
+                                        <span
+                                            style={{
+                                                opacity: isMobile
+                                                    ? 1
+                                                    : open
+                                                    ? 1
+                                                    : 0,
+                                                maxWidth: isMobile
+                                                    ? "none"
+                                                    : open
+                                                    ? 200
+                                                    : 0,
+                                                overflow: "hidden",
+                                                whiteSpace: "nowrap",
+                                                transition: "all 0.3s ease",
+                                                pointerEvents: isMobile
+                                                    ? "auto"
+                                                    : open
+                                                    ? "auto"
+                                                    : "none",
+                                                fontWeight: isMobile
+                                                    ? 600
+                                                    : 600,
+                                            }}
+                                        >
+                                            {menu.label}
+                                        </span>
+                                    </Link>
+
+                                    {/* Logout button after Listing Chat menu */}
+                                    {isChatMenu && (
+                                        <>
+                                            <div
+                                                style={{
+                                                    height: "1px",
+                                                    background: "#374151",
+                                                    margin: isMobile
+                                                        ? "16px 12px"
+                                                        : open
+                                                        ? "16px 28px"
+                                                        : "16px 0",
+                                                    opacity: 0.3,
+                                                }}
+                                            />
+                                            <button
+                                                onClick={handleLogout}
+                                                style={{
+                                                    ...navStyle,
+                                                    background: "#ef4444",
+                                                    color: "#fff",
+                                                    border: "none",
+                                                    margin: isMobile
+                                                        ? "0 12px"
+                                                        : open
+                                                        ? "0 28px"
+                                                        : "0",
+                                                    cursor: "pointer",
+                                                    fontWeight: 700,
+                                                    fontSize: isMobile
+                                                        ? 18
+                                                        : open
+                                                        ? 16
+                                                        : 22,
+                                                    boxShadow:
+                                                        "0 2px 8px rgba(239,68,68,0.3)",
+                                                    width: "auto",
+                                                    minWidth: 0,
+                                                    justifyContent:
+                                                        "flex-start",
+                                                    transition: "all 0.2s ease",
+                                                    borderRadius: isMobile
+                                                        ? 12
+                                                        : 10,
+                                                    padding: isMobile
+                                                        ? "16px 24px"
+                                                        : open
+                                                        ? "14px 28px"
+                                                        : "14px 0",
+                                                }}
+                                                aria-label="Logout"
+                                            >
+                                                <span
+                                                    style={{
+                                                        fontSize: isMobile
+                                                            ? 24
+                                                            : 22,
+                                                        marginRight: isMobile
+                                                            ? 16
+                                                            : open
+                                                            ? 12
+                                                            : 0,
+                                                        transition:
+                                                            "margin 0.2s ease",
+                                                    }}
+                                                >
+                                                    🚪
+                                                </span>
+                                                <span
+                                                    style={{
+                                                        opacity: isMobile
+                                                            ? 1
+                                                            : open
+                                                            ? 1
+                                                            : 0,
+                                                        transition:
+                                                            "opacity 0.3s ease",
+                                                    }}
+                                                >
+                                                    {isMobile || open
+                                                        ? "Logout"
+                                                        : ""}
+                                                </span>
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
                             )
                         })}
                     </nav>
                 </div>
-                <button
-                    onClick={handleLogout}
-                    style={{
-                        ...navStyle,
-                        background: "#ef4444",
-                        color: "#fff",
-                        border: "none",
-                        margin: isMobile ? "24px 12px" : open ? 24 : 0,
-                        marginTop: 32,
-                        cursor: "pointer",
-                        fontWeight: 700,
-                        fontSize: isMobile ? 18 : open ? 16 : 22,
-                        boxShadow: "0 2px 8px rgba(239,68,68,0.3)",
-                        width: "auto",
-                        minWidth: 0,
-                        justifyContent: "flex-start",
-                        transition: "all 0.2s ease",
-                        borderRadius: isMobile ? 12 : 10,
-                    }}
-                    aria-label="Logout"
-                >
-                    <span
-                        style={{
-                            fontSize: isMobile ? 24 : 22,
-                            marginRight: isMobile ? 16 : open ? 10 : 0,
-                            transition: "margin 0.2s ease",
-                        }}
-                    >
-                        🚪
-                    </span>
-                    <span
-                        style={{
-                            opacity: isMobile ? 1 : open ? 1 : 0,
-                            transition: "opacity 0.3s ease",
-                        }}
-                    >
-                        {isMobile || open ? "Logout" : ""}
-                    </span>
-                </button>
             </aside>
 
             <style jsx>{`

@@ -171,134 +171,392 @@ export default function TaxListPage() {
                         >
                             Listing Pajak
                         </h2>
-                        <button
-                            onClick={openAdd}
+
+                        {/* Desktop Add Button */}
+                        <div
                             style={{
-                                background: "#2563eb",
-                                color: "#fff",
-                                border: "none",
-                                borderRadius: 8,
-                                padding: "10px 22px",
-                                fontWeight: 600,
-                                fontSize: 16,
+                                display: isMobile ? "none" : "block",
                                 marginBottom: 18,
-                                cursor: "pointer",
                             }}
                         >
-                            Tambah Pajak
-                        </button>
+                            <button
+                                onClick={openAdd}
+                                style={{
+                                    background: "#2563eb",
+                                    color: "#fff",
+                                    border: "none",
+                                    borderRadius: 8,
+                                    padding: "10px 22px",
+                                    fontWeight: 600,
+                                    fontSize: 16,
+                                    cursor: "pointer",
+                                }}
+                            >
+                                Tambah Pajak
+                            </button>
+                        </div>
+
                         {loading ? (
                             <LoadingSpinner text="Memuat data pajak..." />
                         ) : (
-                            <table
-                                style={{
-                                    width: "100%",
-                                    borderCollapse: "collapse",
-                                    background: "#fff",
-                                }}
-                            >
-                                <thead>
-                                    <tr style={{ background: "#e0e7ff" }}>
-                                        <th style={thStyle}>Nama UserId</th>
-                                        <th style={thStyle}>Nama</th>
-                                        <th style={thStyle}>Alamat</th>
-                                        <th style={thStyle}>Tahun</th>
-                                        <th style={thStyle}>Status</th>
-                                        <th style={thStyle}>Total</th>
-                                        <th style={thStyle}>Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+                            <>
+                                {/* Mobile Card View */}
+                                <div
+                                    style={{
+                                        display: isMobile ? "block" : "none",
+                                    }}
+                                >
                                     {taxes.length === 0 ? (
-                                        <tr>
-                                            <td
-                                                colSpan={7}
+                                        <div
+                                            style={{
+                                                textAlign: "center",
+                                                color: "#888",
+                                                padding: 28,
+                                            }}
+                                        >
+                                            Tidak ada data pajak
+                                        </div>
+                                    ) : (
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                flexDirection: "column",
+                                                gap: 12,
+                                            }}
+                                        >
+                                            {taxes.map((tax, idx) => {
+                                                const user = users.find(
+                                                    (u) =>
+                                                        u._id === tax.userId ||
+                                                        u._id?.toString() ===
+                                                            tax.userId
+                                                )
+                                                const getStatusColor = (
+                                                    status
+                                                ) => {
+                                                    const statusLower = (
+                                                        status || ""
+                                                    ).toLowerCase()
+                                                    if (statusLower === "lunas")
+                                                        return "#10b981"
+                                                    if (
+                                                        statusLower === "proses"
+                                                    )
+                                                        return "#f59e0b"
+                                                    if (
+                                                        statusLower ===
+                                                        "belum lunas"
+                                                    )
+                                                        return "#ef4444"
+                                                    return "#6b7280"
+                                                }
+                                                return (
+                                                    <div
+                                                        key={tax._id || idx}
+                                                        style={{
+                                                            background:
+                                                                "#f8fafc",
+                                                            borderRadius: 12,
+                                                            padding: 16,
+                                                            border: "1px solid #e2e8f0",
+                                                            boxShadow:
+                                                                "0 2px 4px rgba(0,0,0,0.05)",
+                                                        }}
+                                                    >
+                                                        <div
+                                                            style={{
+                                                                display: "flex",
+                                                                justifyContent:
+                                                                    "space-between",
+                                                                alignItems:
+                                                                    "flex-start",
+                                                                marginBottom: 12,
+                                                            }}
+                                                        >
+                                                            <div
+                                                                style={{
+                                                                    flex: 1,
+                                                                }}
+                                                            >
+                                                                <div
+                                                                    style={{
+                                                                        fontWeight: 600,
+                                                                        color: "#2563eb",
+                                                                        fontSize: 16,
+                                                                        marginBottom: 4,
+                                                                    }}
+                                                                >
+                                                                    {user
+                                                                        ? user.name
+                                                                        : "-"}
+                                                                </div>
+                                                                <div
+                                                                    style={{
+                                                                        color: "#6b7280",
+                                                                        fontSize: 14,
+                                                                        marginBottom: 4,
+                                                                    }}
+                                                                >
+                                                                    {tax.name ||
+                                                                        "-"}
+                                                                </div>
+                                                                <div
+                                                                    style={{
+                                                                        color: "#6b7280",
+                                                                        fontSize: 14,
+                                                                        marginBottom: 6,
+                                                                    }}
+                                                                >
+                                                                    {tax.address ||
+                                                                        "-"}
+                                                                </div>
+                                                                <div
+                                                                    style={{
+                                                                        display:
+                                                                            "flex",
+                                                                        alignItems:
+                                                                            "center",
+                                                                        gap: 8,
+                                                                        marginBottom: 8,
+                                                                    }}
+                                                                >
+                                                                    <span
+                                                                        style={{
+                                                                            background:
+                                                                                "#2563eb",
+                                                                            color: "white",
+                                                                            padding:
+                                                                                "4px 8px",
+                                                                            borderRadius: 6,
+                                                                            fontSize: 12,
+                                                                            fontWeight: 600,
+                                                                        }}
+                                                                    >
+                                                                        Tahun:{" "}
+                                                                        {tax.year ||
+                                                                            "-"}
+                                                                    </span>
+                                                                    <span
+                                                                        style={{
+                                                                            background:
+                                                                                getStatusColor(
+                                                                                    tax.status
+                                                                                ),
+                                                                            color: "white",
+                                                                            padding:
+                                                                                "4px 8px",
+                                                                            borderRadius: 6,
+                                                                            fontSize: 12,
+                                                                            fontWeight: 600,
+                                                                        }}
+                                                                    >
+                                                                        {tax.status ||
+                                                                            "-"}
+                                                                    </span>
+                                                                </div>
+                                                                <div
+                                                                    style={{
+                                                                        color: "#16a34a",
+                                                                        fontSize: 16,
+                                                                        fontWeight: 700,
+                                                                        marginBottom: 8,
+                                                                    }}
+                                                                >
+                                                                    {tax.total !==
+                                                                    undefined
+                                                                        ? formatRupiah(
+                                                                              tax.total
+                                                                          )
+                                                                        : "-"}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div
+                                                            style={{
+                                                                display: "flex",
+                                                                gap: 8,
+                                                            }}
+                                                        >
+                                                            <button
+                                                                onClick={() =>
+                                                                    openEdit(
+                                                                        tax
+                                                                    )
+                                                                }
+                                                                style={{
+                                                                    ...btnStyle,
+                                                                    background:
+                                                                        "#fbbf24",
+                                                                    color: "#fff",
+                                                                    flex: 1,
+                                                                    padding:
+                                                                        "8px 12px",
+                                                                    fontSize: 14,
+                                                                }}
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                            <button
+                                                                onClick={() =>
+                                                                    handleDelete(
+                                                                        tax
+                                                                    )
+                                                                }
+                                                                style={{
+                                                                    ...btnStyle,
+                                                                    background:
+                                                                        "#ef4444",
+                                                                    color: "#fff",
+                                                                    flex: 1,
+                                                                    padding:
+                                                                        "8px 12px",
+                                                                    fontSize: 14,
+                                                                }}
+                                                            >
+                                                                Hapus
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Desktop Table View */}
+                                <div
+                                    style={{
+                                        display: isMobile ? "none" : "block",
+                                    }}
+                                >
+                                    <table
+                                        style={{
+                                            width: "100%",
+                                            borderCollapse: "collapse",
+                                            background: "#fff",
+                                        }}
+                                    >
+                                        <thead>
+                                            <tr
                                                 style={{
-                                                    textAlign: "center",
-                                                    color: "#888",
-                                                    padding: 28,
+                                                    background: "#e0e7ff",
                                                 }}
                                             >
-                                                Tidak ada data pajak
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        taxes.map((tax, idx) => {
-                                            const user = users.find(
-                                                (u) =>
-                                                    u._id === tax.userId ||
-                                                    u._id?.toString() ===
-                                                        tax.userId
-                                            )
-                                            return (
-                                                <tr
-                                                    key={tax._id || idx}
-                                                    style={{
-                                                        background:
-                                                            idx % 2 === 0
-                                                                ? "#fff"
-                                                                : "#f9fafb",
-                                                    }}
-                                                >
-                                                    <td style={tdStyle}>
-                                                        {user ? user.name : "-"}
-                                                    </td>
-                                                    <td style={tdStyle}>
-                                                        {tax.name || "-"}
-                                                    </td>
-                                                    <td style={tdStyle}>
-                                                        {tax.address || "-"}
-                                                    </td>
-                                                    <td style={tdStyle}>
-                                                        {tax.year || "-"}
-                                                    </td>
-                                                    <td style={tdStyle}>
-                                                        {tax.status || "-"}
-                                                    </td>
-                                                    <td style={tdStyle}>
-                                                        {tax.total !== undefined
-                                                            ? formatRupiah(
-                                                                  tax.total
-                                                              )
-                                                            : "-"}
-                                                    </td>
-                                                    <td style={tdStyle}>
-                                                        <button
-                                                            onClick={() =>
-                                                                openEdit(tax)
-                                                            }
-                                                            style={{
-                                                                ...btnStyle,
-                                                                background:
-                                                                    "#fbbf24",
-                                                                color: "#fff",
-                                                            }}
-                                                        >
-                                                            Edit
-                                                        </button>
-                                                        <button
-                                                            onClick={() =>
-                                                                handleDelete(
-                                                                    tax
-                                                                )
-                                                            }
-                                                            style={{
-                                                                ...btnStyle,
-                                                                background:
-                                                                    "#ef4444",
-                                                                color: "#fff",
-                                                                marginLeft: 8,
-                                                            }}
-                                                        >
-                                                            Hapus
-                                                        </button>
+                                                <th style={thStyle}>
+                                                    Nama UserId
+                                                </th>
+                                                <th style={thStyle}>Nama</th>
+                                                <th style={thStyle}>Alamat</th>
+                                                <th style={thStyle}>Tahun</th>
+                                                <th style={thStyle}>Status</th>
+                                                <th style={thStyle}>Total</th>
+                                                <th style={thStyle}>Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {taxes.length === 0 ? (
+                                                <tr>
+                                                    <td
+                                                        colSpan={7}
+                                                        style={{
+                                                            textAlign: "center",
+                                                            color: "#888",
+                                                            padding: 28,
+                                                        }}
+                                                    >
+                                                        Tidak ada data pajak
                                                     </td>
                                                 </tr>
-                                            )
-                                        })
-                                    )}
-                                </tbody>
-                            </table>
+                                            ) : (
+                                                taxes.map((tax, idx) => {
+                                                    const user = users.find(
+                                                        (u) =>
+                                                            u._id ===
+                                                                tax.userId ||
+                                                            u._id?.toString() ===
+                                                                tax.userId
+                                                    )
+                                                    return (
+                                                        <tr
+                                                            key={tax._id || idx}
+                                                            style={{
+                                                                background:
+                                                                    idx % 2 ===
+                                                                    0
+                                                                        ? "#fff"
+                                                                        : "#f9fafb",
+                                                            }}
+                                                        >
+                                                            <td style={tdStyle}>
+                                                                {user
+                                                                    ? user.name
+                                                                    : "-"}
+                                                            </td>
+                                                            <td style={tdStyle}>
+                                                                {tax.name ||
+                                                                    "-"}
+                                                            </td>
+                                                            <td style={tdStyle}>
+                                                                {tax.address ||
+                                                                    "-"}
+                                                            </td>
+                                                            <td style={tdStyle}>
+                                                                {tax.year ||
+                                                                    "-"}
+                                                            </td>
+                                                            <td style={tdStyle}>
+                                                                {tax.status ||
+                                                                    "-"}
+                                                            </td>
+                                                            <td style={tdStyle}>
+                                                                {tax.total !==
+                                                                undefined
+                                                                    ? formatRupiah(
+                                                                          tax.total
+                                                                      )
+                                                                    : "-"}
+                                                            </td>
+                                                            <td style={tdStyle}>
+                                                                <button
+                                                                    onClick={() =>
+                                                                        openEdit(
+                                                                            tax
+                                                                        )
+                                                                    }
+                                                                    style={{
+                                                                        ...btnStyle,
+                                                                        background:
+                                                                            "#fbbf24",
+                                                                        color: "#fff",
+                                                                    }}
+                                                                >
+                                                                    Edit
+                                                                </button>
+                                                                <button
+                                                                    onClick={() =>
+                                                                        handleDelete(
+                                                                            tax
+                                                                        )
+                                                                    }
+                                                                    style={{
+                                                                        ...btnStyle,
+                                                                        background:
+                                                                            "#ef4444",
+                                                                        color: "#fff",
+                                                                        marginLeft: 8,
+                                                                    }}
+                                                                >
+                                                                    Hapus
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    )
+                                                })
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
                         )}
                         {/* Modal */}
                         {modal.open && (
@@ -494,8 +752,8 @@ export default function TaxListPage() {
                                             <option value="belum lunas">
                                                 Belum Lunas
                                             </option>
-                                            <option value="ditunda">
-                                                Ditunda
+                                            <option value="proses">
+                                                Proses
                                             </option>
                                         </select>
                                     </div>
@@ -573,6 +831,46 @@ export default function TaxListPage() {
                         )}
                     </div>
                 </main>
+
+                {/* Mobile Floating Action Button */}
+                {isMobile && (
+                    <button
+                        onClick={openAdd}
+                        style={{
+                            position: "fixed",
+                            bottom: 20,
+                            right: 20,
+                            width: 56,
+                            height: 56,
+                            borderRadius: "50%",
+                            background: "#2563eb",
+                            color: "#fff",
+                            border: "none",
+                            fontSize: 24,
+                            fontWeight: "bold",
+                            boxShadow: "0 4px 12px rgba(37, 99, 235, 0.4)",
+                            cursor: "pointer",
+                            zIndex: 1000,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "all 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                            e.target.style.transform = "scale(1.1)"
+                            e.target.style.boxShadow =
+                                "0 6px 16px rgba(37, 99, 235, 0.5)"
+                        }}
+                        onMouseLeave={(e) => {
+                            e.target.style.transform = "scale(1)"
+                            e.target.style.boxShadow =
+                                "0 4px 12px rgba(37, 99, 235, 0.4)"
+                        }}
+                        title="Tambah Pajak"
+                    >
+                        +
+                    </button>
+                )}
             </div>
             <style>{`
                 @media (max-width: 900px) {
@@ -583,10 +881,29 @@ export default function TaxListPage() {
                     .sidebar { width: 0 !important; }
                     table { font-size: 13px !important; }
                     th, td { padding: 8px !important; }
+                    
+                    /* Mobile card styling */
+                    main > div {
+                        margin: 20px auto !important;
+                        padding: 16px !important;
+                    }
                 }
                 @media (max-width: 500px) {
                     main { padding: 0 1vw !important; }
                     h1, h3 { font-size: 17px !important; }
+                    
+                    /* Card styling for very small screens */
+                    main > div {
+                        margin: 12px auto !important;
+                        padding: 12px !important;
+                    }
+                    
+                    /* Modal styling for mobile */
+                    form {
+                        min-width: 280px !important;
+                        padding: 20px !important;
+                        margin: 10px !important;
+                    }
                 }
             `}</style>
         </>

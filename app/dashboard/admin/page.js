@@ -13,12 +13,13 @@ export default function AdminDashboardPage() {
     const [userPage, setUserPage] = useState(1)
     const [taxPage, setTaxPage] = useState(1)
     const pageSize = 10
-    const pagedUsers = users.slice(
-        (userPage - 1) * pageSize,
-        userPage * pageSize
-    )
+    const pagedUsers = Array.isArray(users)
+        ? users.slice((userPage - 1) * pageSize, userPage * pageSize)
+        : []
     const pagedTaxes = taxes.slice((taxPage - 1) * pageSize, taxPage * pageSize)
-    const userTotalPages = Math.ceil(users.length / pageSize) || 1
+    const userTotalPages = Array.isArray(users)
+        ? Math.ceil(users.length / pageSize) || 1
+        : 1
     const taxTotalPages = Math.ceil(taxes.length / pageSize) || 1
     const [sidebarOpen, setSidebarOpen] = useState(true)
     const [isMobile, setIsMobile] = useState(false)
@@ -67,7 +68,13 @@ export default function AdminDashboardPage() {
             try {
                 const usersRes = await fetch("/api/admin/users")
                 const usersData = await usersRes.json()
-                setUsers(usersData)
+                // Perbaiki: jika usersData adalah objek, ambil usersData.users
+                const usersArr = Array.isArray(usersData)
+                    ? usersData
+                    : Array.isArray(usersData.users)
+                    ? usersData.users
+                    : []
+                setUsers(usersArr)
 
                 const taxesRes = await fetch("/api/admin/tax")
                 const taxesData = await taxesRes.json()
@@ -75,7 +82,7 @@ export default function AdminDashboardPage() {
 
                 // Notifikasi sukses saat data berhasil dimuat
                 addNotification(
-                    `Berhasil memuat ${usersData.length} user dan ${taxesData.length} data pajak`,
+                    `Berhasil memuat ${usersArr.length} user dan ${taxesData.length} data pajak`,
                     "success"
                 )
             } catch (error) {
@@ -346,136 +353,231 @@ export default function AdminDashboardPage() {
                         >
                             Total User: {users.length}
                         </div>
-                        <div style={{ overflowX: "auto" }}>
-                            <table
-                                style={{
-                                    width: "100%",
-                                    borderCollapse: "collapse",
-                                    background: "#fff",
-                                    fontSize: "clamp(13px,2vw,16px)",
-                                }}
-                            >
-                                <thead>
-                                    <tr style={{ background: "#e0e7ff" }}>
-                                        <th
+
+                        {/* Mobile Card View */}
+                        <div style={{ display: isMobile ? "block" : "none" }}>
+                            {pagedUsers.length === 0 ? (
+                                <div
+                                    style={{
+                                        textAlign: "center",
+                                        color: "#888",
+                                        padding: 18,
+                                    }}
+                                >
+                                    Tidak ada data user
+                                </div>
+                            ) : (
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 12,
+                                    }}
+                                >
+                                    {pagedUsers.map((user, idx) => (
+                                        <div
+                                            key={user._id || idx}
                                             style={{
-                                                padding: 14,
-                                                border: "1.5px solid #c7d2fe",
-                                                fontWeight: 800,
-                                                color: "#1e3a8a",
-                                                textAlign: "left",
-                                                letterSpacing: 0.5,
+                                                background: "#f8fafc",
+                                                borderRadius: 12,
+                                                padding: 16,
+                                                border: "1px solid #e2e8f0",
+                                                boxShadow:
+                                                    "0 2px 4px rgba(0,0,0,0.05)",
                                             }}
                                         >
-                                            Email
-                                        </th>
-                                        <th
-                                            style={{
-                                                padding: 14,
-                                                border: "1.5px solid #c7d2fe",
-                                                fontWeight: 800,
-                                                color: "#1e3a8a",
-                                                textAlign: "left",
-                                                letterSpacing: 0.5,
-                                            }}
-                                        >
-                                            Nama
-                                        </th>
-                                        <th
-                                            style={{
-                                                padding: 14,
-                                                border: "1.5px solid #c7d2fe",
-                                                fontWeight: 800,
-                                                color: "#1e3a8a",
-                                                textAlign: "left",
-                                                letterSpacing: 0.5,
-                                            }}
-                                        >
-                                            Role
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {pagedUsers.length === 0 ? (
-                                        <tr>
-                                            <td
-                                                colSpan={4}
+                                            <div
                                                 style={{
-                                                    textAlign: "center",
-                                                    color: "#888",
-                                                    padding: 18,
+                                                    display: "flex",
+                                                    justifyContent:
+                                                        "space-between",
+                                                    alignItems: "center",
+                                                    marginBottom: 8,
                                                 }}
                                             >
-                                                Tidak ada data user
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        pagedUsers.map((user, idx) => (
-                                            <tr
-                                                key={user._id || idx}
-                                                style={{
-                                                    background:
-                                                        idx % 2 === 0
-                                                            ? "#fff"
-                                                            : "#f9fafb",
-                                                    transition:
-                                                        "background 0.2s",
-                                                }}
-                                                onMouseOver={(e) =>
-                                                    (e.currentTarget.style.background =
-                                                        "#dbeafe")
-                                                }
-                                                onMouseOut={(e) =>
-                                                    (e.currentTarget.style.background =
-                                                        idx % 2 === 0
-                                                            ? "#fff"
-                                                            : "#f9fafb")
-                                                }
-                                            >
-                                                <td
+                                                <div
                                                     style={{
-                                                        padding: 14,
-                                                        border: "1.5px solid #c7d2fe",
-                                                        color: "#222",
-                                                        fontWeight: 500,
+                                                        fontWeight: 600,
+                                                        color: "#2563eb",
+                                                        fontSize: 14,
                                                     }}
                                                 >
                                                     {user.email}
-                                                </td>
-                                                <td
+                                                </div>
+                                                <div
                                                     style={{
-                                                        padding: 14,
-                                                        border: "1.5px solid #c7d2fe",
-                                                        color: "#222",
-                                                        fontWeight: 500,
-                                                    }}
-                                                >
-                                                    {user.name}
-                                                </td>
-                                                <td
-                                                    style={{
-                                                        padding: 14,
-                                                        border: "1.5px solid #c7d2fe",
-                                                        color: "#2563eb",
+                                                        background:
+                                                            user.role ===
+                                                            "admin"
+                                                                ? "#2563eb"
+                                                                : "#10b981",
+                                                        color: "white",
+                                                        padding: "4px 8px",
+                                                        borderRadius: 6,
+                                                        fontSize: 12,
+                                                        fontWeight: 600,
                                                         textTransform:
                                                             "capitalize",
-                                                        fontWeight: 600,
                                                     }}
                                                 >
                                                     {user.role === "admin"
                                                         ? "admin"
                                                         : "user"}
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                                                </div>
+                                            </div>
+                                            <div
+                                                style={{
+                                                    color: "#374151",
+                                                    fontSize: 14,
+                                                }}
+                                            >
+                                                <strong>Nama:</strong>{" "}
+                                                {user.name}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             <Pagination
                                 page={userPage}
                                 setPage={setUserPage}
                                 totalPages={userTotalPages}
                             />
+                        </div>
+
+                        {/* Desktop Table View */}
+                        <div style={{ display: isMobile ? "none" : "block" }}>
+                            <div style={{ overflowX: "auto" }}>
+                                <table
+                                    style={{
+                                        width: "100%",
+                                        borderCollapse: "collapse",
+                                        background: "#fff",
+                                        fontSize: "clamp(13px,2vw,16px)",
+                                    }}
+                                >
+                                    <thead>
+                                        <tr style={{ background: "#e0e7ff" }}>
+                                            <th
+                                                style={{
+                                                    padding: 14,
+                                                    border: "1.5px solid #c7d2fe",
+                                                    fontWeight: 800,
+                                                    color: "#1e3a8a",
+                                                    textAlign: "left",
+                                                    letterSpacing: 0.5,
+                                                }}
+                                            >
+                                                Email
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: 14,
+                                                    border: "1.5px solid #c7d2fe",
+                                                    fontWeight: 800,
+                                                    color: "#1e3a8a",
+                                                    textAlign: "left",
+                                                    letterSpacing: 0.5,
+                                                }}
+                                            >
+                                                Nama
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: 14,
+                                                    border: "1.5px solid #c7d2fe",
+                                                    fontWeight: 800,
+                                                    color: "#1e3a8a",
+                                                    textAlign: "left",
+                                                    letterSpacing: 0.5,
+                                                }}
+                                            >
+                                                Role
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {pagedUsers.length === 0 ? (
+                                            <tr>
+                                                <td
+                                                    colSpan={4}
+                                                    style={{
+                                                        textAlign: "center",
+                                                        color: "#888",
+                                                        padding: 18,
+                                                    }}
+                                                >
+                                                    Tidak ada data user
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            pagedUsers.map((user, idx) => (
+                                                <tr
+                                                    key={user._id || idx}
+                                                    style={{
+                                                        background:
+                                                            idx % 2 === 0
+                                                                ? "#fff"
+                                                                : "#f9fafb",
+                                                        transition:
+                                                            "background 0.2s",
+                                                    }}
+                                                    onMouseOver={(e) =>
+                                                        (e.currentTarget.style.background =
+                                                            "#dbeafe")
+                                                    }
+                                                    onMouseOut={(e) =>
+                                                        (e.currentTarget.style.background =
+                                                            idx % 2 === 0
+                                                                ? "#fff"
+                                                                : "#f9fafb")
+                                                    }
+                                                >
+                                                    <td
+                                                        style={{
+                                                            padding: 14,
+                                                            border: "1.5px solid #c7d2fe",
+                                                            color: "#222",
+                                                            fontWeight: 500,
+                                                        }}
+                                                    >
+                                                        {user.email}
+                                                    </td>
+                                                    <td
+                                                        style={{
+                                                            padding: 14,
+                                                            border: "1.5px solid #c7d2fe",
+                                                            color: "#222",
+                                                            fontWeight: 500,
+                                                        }}
+                                                    >
+                                                        {user.name}
+                                                    </td>
+                                                    <td
+                                                        style={{
+                                                            padding: 14,
+                                                            border: "1.5px solid #c7d2fe",
+                                                            color: "#2563eb",
+                                                            textTransform:
+                                                                "capitalize",
+                                                            fontWeight: 600,
+                                                        }}
+                                                    >
+                                                        {user.role === "admin"
+                                                            ? "admin"
+                                                            : "user"}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                                <Pagination
+                                    page={userPage}
+                                    setPage={setUserPage}
+                                    totalPages={userTotalPages}
+                                />
+                            </div>
                         </div>
                     </div>
                     {/* Data Pajak */}
@@ -584,241 +686,440 @@ export default function AdminDashboardPage() {
                             />
                         </div>
                         <div style={{ overflowX: "auto" }}>
-                            <table
-                                style={{
-                                    width: "100%",
-                                    borderCollapse: "collapse",
-                                    background: "#fff",
-                                    fontSize: "clamp(13px,2vw,16px)",
-                                }}
+                            {/* Mobile Card View */}
+                            <div
+                                style={{ display: isMobile ? "block" : "none" }}
                             >
-                                <thead>
-                                    <tr style={{ background: "#e0e7ff" }}>
-                                        <th
-                                            style={{
-                                                padding: 14,
-                                                border: "1.5px solid #c7d2fe",
-                                                fontWeight: 800,
-                                                color: "#1e3a8a",
-                                                textAlign: "left",
-                                                letterSpacing: 0.5,
-                                            }}
-                                        >
-                                            Nama UserId
-                                        </th>
-                                        <th
-                                            style={{
-                                                padding: 14,
-                                                border: "1.5px solid #c7d2fe",
-                                                fontWeight: 800,
-                                                color: "#1e3a8a",
-                                                textAlign: "left",
-                                                letterSpacing: 0.5,
-                                            }}
-                                        >
-                                            Nama
-                                        </th>
-                                        <th
-                                            style={{
-                                                padding: 14,
-                                                border: "1.5px solid #c7d2fe",
-                                                fontWeight: 800,
-                                                color: "#1e3a8a",
-                                                textAlign: "left",
-                                                letterSpacing: 0.5,
-                                            }}
-                                        >
-                                            Alamat
-                                        </th>
-                                        <th
-                                            style={{
-                                                padding: 14,
-                                                border: "1.5px solid #c7d2fe",
-                                                fontWeight: 800,
-                                                color: "#1e3a8a",
-                                                textAlign: "left",
-                                                letterSpacing: 0.5,
-                                            }}
-                                        >
-                                            Tahun
-                                        </th>
-                                        <th
-                                            style={{
-                                                padding: 14,
-                                                border: "1.5px solid #c7d2fe",
-                                                fontWeight: 800,
-                                                color: "#1e3a8a",
-                                                textAlign: "left",
-                                                letterSpacing: 0.5,
-                                            }}
-                                        >
-                                            Status
-                                        </th>
-                                        <th
-                                            style={{
-                                                padding: 14,
-                                                border: "1.5px solid #c7d2fe",
-                                                fontWeight: 800,
-                                                color: "#1e3a8a",
-                                                textAlign: "left",
-                                                letterSpacing: 0.5,
-                                            }}
-                                        >
-                                            Total
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {pagedTaxes.length === 0 ? (
-                                        <tr>
-                                            <td
-                                                colSpan={7}
-                                                style={{
-                                                    textAlign: "center",
-                                                    color: "#888",
-                                                    padding: 18,
-                                                }}
-                                            >
-                                                Tidak ada data pajak
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        pagedTaxes.map((tax, idx) => {
+                                {pagedTaxes.length === 0 ? (
+                                    <div
+                                        style={{
+                                            textAlign: "center",
+                                            color: "#888",
+                                            padding: 18,
+                                        }}
+                                    >
+                                        Tidak ada data pajak
+                                    </div>
+                                ) : (
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            gap: 12,
+                                        }}
+                                    >
+                                        {pagedTaxes.map((tax, idx) => {
                                             const user = users.find(
                                                 (u) =>
                                                     u._id === tax.userId ||
                                                     u._id?.toString() ===
                                                         tax.userId
                                             )
+                                            const getStatusColor = (status) => {
+                                                const statusLower = (
+                                                    status || ""
+                                                ).toLowerCase()
+                                                if (statusLower === "lunas")
+                                                    return "#10b981"
+                                                if (statusLower === "proses")
+                                                    return "#f59e0b"
+                                                if (
+                                                    statusLower ===
+                                                    "belum lunas"
+                                                )
+                                                    return "#ef4444"
+                                                return "#6b7280"
+                                            }
+                                            const getNominal = () => {
+                                                if (
+                                                    tax.jumlah !== undefined &&
+                                                    tax.jumlah !== null &&
+                                                    tax.jumlah !== ""
+                                                ) {
+                                                    return `Rp ${parseFloat(
+                                                        tax.jumlah
+                                                    ).toLocaleString("id-ID")}`
+                                                } else if (
+                                                    tax.total !== undefined &&
+                                                    tax.total !== null &&
+                                                    tax.total !== ""
+                                                ) {
+                                                    return `Rp ${parseFloat(
+                                                        tax.total
+                                                    ).toLocaleString("id-ID")}`
+                                                } else if (
+                                                    tax.nominal !== undefined &&
+                                                    tax.nominal !== null &&
+                                                    tax.nominal !== ""
+                                                ) {
+                                                    return `Rp ${parseFloat(
+                                                        tax.nominal
+                                                    ).toLocaleString("id-ID")}`
+                                                }
+                                                return "-"
+                                            }
                                             return (
-                                                <tr
+                                                <div
                                                     key={tax._id || idx}
                                                     style={{
-                                                        background:
-                                                            idx % 2 === 0
-                                                                ? "#fff"
-                                                                : "#f9fafb",
-                                                        transition:
-                                                            "background 0.2s",
+                                                        background: "#f8fafc",
+                                                        borderRadius: 12,
+                                                        padding: 16,
+                                                        border: "1px solid #e2e8f0",
+                                                        boxShadow:
+                                                            "0 2px 4px rgba(0,0,0,0.05)",
                                                     }}
-                                                    onMouseOver={(e) =>
-                                                        (e.currentTarget.style.background =
-                                                            "#dbeafe")
-                                                    }
-                                                    onMouseOut={(e) =>
-                                                        (e.currentTarget.style.background =
-                                                            idx % 2 === 0
-                                                                ? "#fff"
-                                                                : "#f9fafb")
-                                                    }
                                                 >
-                                                    <td
+                                                    <div
                                                         style={{
-                                                            padding: 14,
-                                                            border: "1.5px solid #c7d2fe",
-                                                            color: "#222",
-                                                            fontWeight: 500,
+                                                            display: "flex",
+                                                            justifyContent:
+                                                                "space-between",
+                                                            alignItems:
+                                                                "center",
+                                                            marginBottom: 8,
                                                         }}
                                                     >
-                                                        {user ? user.name : "-"}
-                                                    </td>
-                                                    <td
+                                                        <div
+                                                            style={{
+                                                                fontWeight: 600,
+                                                                color: "#2563eb",
+                                                                fontSize: 14,
+                                                            }}
+                                                        >
+                                                            {user
+                                                                ? user.name
+                                                                : "-"}
+                                                        </div>
+                                                        <div
+                                                            style={{
+                                                                background:
+                                                                    getStatusColor(
+                                                                        tax.status
+                                                                    ),
+                                                                color: "white",
+                                                                padding:
+                                                                    "4px 8px",
+                                                                borderRadius: 6,
+                                                                fontSize: 12,
+                                                                fontWeight: 600,
+                                                            }}
+                                                        >
+                                                            {tax.status || "-"}
+                                                        </div>
+                                                    </div>
+                                                    <div
                                                         style={{
-                                                            padding: 14,
-                                                            border: "1.5px solid #c7d2fe",
-                                                            color: "#222",
-                                                            fontWeight: 500,
+                                                            display: "flex",
+                                                            flexDirection:
+                                                                "column",
+                                                            gap: 4,
                                                         }}
                                                     >
-                                                        {tax.name || "-"}
-                                                    </td>
-                                                    <td
-                                                        style={{
-                                                            padding: 14,
-                                                            border: "1.5px solid #c7d2fe",
-                                                            color: "#222",
-                                                            fontWeight: 500,
-                                                        }}
-                                                    >
-                                                        {tax.address || "-"}
-                                                    </td>
-                                                    <td
-                                                        style={{
-                                                            padding: 14,
-                                                            border: "1.5px solid #c7d2fe",
-                                                            color: "#222",
-                                                            fontWeight: 500,
-                                                        }}
-                                                    >
-                                                        {tax.year || "-"}
-                                                    </td>
-                                                    <td
-                                                        style={{
-                                                            padding: 14,
-                                                            border: "1.5px solid #c7d2fe",
-                                                            color: "#222",
-                                                            fontWeight: 500,
-                                                        }}
-                                                    >
-                                                        {tax.status || "-"}
-                                                    </td>
-                                                    <td
-                                                        style={{
-                                                            padding: 14,
-                                                            border: "1.5px solid #c7d2fe",
-                                                            color: "#222",
-                                                            fontWeight: 500,
-                                                        }}
-                                                    >
-                                                        {tax.jumlah !==
-                                                            undefined &&
-                                                        tax.jumlah !== null &&
-                                                        tax.jumlah !== "" ? (
-                                                            `Rp ${parseFloat(
-                                                                tax.jumlah
-                                                            ).toLocaleString(
-                                                                "id-ID"
-                                                            )}`
-                                                        ) : tax.total !==
-                                                              undefined &&
-                                                          tax.total !== null &&
-                                                          tax.total !== "" ? (
-                                                            `Rp ${parseFloat(
-                                                                tax.total
-                                                            ).toLocaleString(
-                                                                "id-ID"
-                                                            )}`
-                                                        ) : tax.nominal !==
-                                                              undefined &&
-                                                          tax.nominal !==
-                                                              null &&
-                                                          tax.nominal !== "" ? (
-                                                            `Rp ${parseFloat(
-                                                                tax.nominal
-                                                            ).toLocaleString(
-                                                                "id-ID"
-                                                            )}`
-                                                        ) : (
-                                                            <span
-                                                                style={{
-                                                                    color: "red",
-                                                                }}
-                                                            >
-                                                                -
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                </tr>
+                                                        <div
+                                                            style={{
+                                                                color: "#374151",
+                                                                fontSize: 14,
+                                                            }}
+                                                        >
+                                                            <strong>
+                                                                Nama:
+                                                            </strong>{" "}
+                                                            {tax.name || "-"}
+                                                        </div>
+                                                        <div
+                                                            style={{
+                                                                color: "#374151",
+                                                                fontSize: 14,
+                                                            }}
+                                                        >
+                                                            <strong>
+                                                                Alamat:
+                                                            </strong>{" "}
+                                                            {tax.address || "-"}
+                                                        </div>
+                                                        <div
+                                                            style={{
+                                                                color: "#374151",
+                                                                fontSize: 14,
+                                                            }}
+                                                        >
+                                                            <strong>
+                                                                Tahun:
+                                                            </strong>{" "}
+                                                            {tax.year || "-"}
+                                                        </div>
+                                                        <div
+                                                            style={{
+                                                                color: "#374151",
+                                                                fontSize: 14,
+                                                            }}
+                                                        >
+                                                            <strong>
+                                                                Total:
+                                                            </strong>{" "}
+                                                            {getNominal()}
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             )
-                                        })
-                                    )}
-                                </tbody>
-                            </table>
-                            <Pagination
-                                page={taxPage}
-                                setPage={setTaxPage}
-                                totalPages={taxTotalPages}
-                            />
+                                        })}
+                                    </div>
+                                )}
+                                <Pagination
+                                    page={taxPage}
+                                    setPage={setTaxPage}
+                                    totalPages={taxTotalPages}
+                                />
+                            </div>
+
+                            {/* Desktop Table View */}
+                            <div
+                                style={{ display: isMobile ? "none" : "block" }}
+                            >
+                                <table
+                                    style={{
+                                        width: "100%",
+                                        borderCollapse: "collapse",
+                                        background: "#fff",
+                                        fontSize: "clamp(13px,2vw,16px)",
+                                    }}
+                                >
+                                    <thead>
+                                        <tr style={{ background: "#e0e7ff" }}>
+                                            <th
+                                                style={{
+                                                    padding: 14,
+                                                    border: "1.5px solid #c7d2fe",
+                                                    fontWeight: 800,
+                                                    color: "#1e3a8a",
+                                                    textAlign: "left",
+                                                    letterSpacing: 0.5,
+                                                }}
+                                            >
+                                                Nama UserId
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: 14,
+                                                    border: "1.5px solid #c7d2fe",
+                                                    fontWeight: 800,
+                                                    color: "#1e3a8a",
+                                                    textAlign: "left",
+                                                    letterSpacing: 0.5,
+                                                }}
+                                            >
+                                                Nama
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: 14,
+                                                    border: "1.5px solid #c7d2fe",
+                                                    fontWeight: 800,
+                                                    color: "#1e3a8a",
+                                                    textAlign: "left",
+                                                    letterSpacing: 0.5,
+                                                }}
+                                            >
+                                                Alamat
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: 14,
+                                                    border: "1.5px solid #c7d2fe",
+                                                    fontWeight: 800,
+                                                    color: "#1e3a8a",
+                                                    textAlign: "left",
+                                                    letterSpacing: 0.5,
+                                                }}
+                                            >
+                                                Tahun
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: 14,
+                                                    border: "1.5px solid #c7d2fe",
+                                                    fontWeight: 800,
+                                                    color: "#1e3a8a",
+                                                    textAlign: "left",
+                                                    letterSpacing: 0.5,
+                                                }}
+                                            >
+                                                Status
+                                            </th>
+                                            <th
+                                                style={{
+                                                    padding: 14,
+                                                    border: "1.5px solid #c7d2fe",
+                                                    fontWeight: 800,
+                                                    color: "#1e3a8a",
+                                                    textAlign: "left",
+                                                    letterSpacing: 0.5,
+                                                }}
+                                            >
+                                                Total
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {pagedTaxes.length === 0 ? (
+                                            <tr>
+                                                <td
+                                                    colSpan={7}
+                                                    style={{
+                                                        textAlign: "center",
+                                                        color: "#888",
+                                                        padding: 18,
+                                                    }}
+                                                >
+                                                    Tidak ada data pajak
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            pagedTaxes.map((tax, idx) => {
+                                                const user = users.find(
+                                                    (u) =>
+                                                        u._id === tax.userId ||
+                                                        u._id?.toString() ===
+                                                            tax.userId
+                                                )
+                                                return (
+                                                    <tr
+                                                        key={tax._id || idx}
+                                                        style={{
+                                                            background:
+                                                                idx % 2 === 0
+                                                                    ? "#fff"
+                                                                    : "#f9fafb",
+                                                            transition:
+                                                                "background 0.2s",
+                                                        }}
+                                                        onMouseOver={(e) =>
+                                                            (e.currentTarget.style.background =
+                                                                "#dbeafe")
+                                                        }
+                                                        onMouseOut={(e) =>
+                                                            (e.currentTarget.style.background =
+                                                                idx % 2 === 0
+                                                                    ? "#fff"
+                                                                    : "#f9fafb")
+                                                        }
+                                                    >
+                                                        <td
+                                                            style={{
+                                                                padding: 14,
+                                                                border: "1.5px solid #c7d2fe",
+                                                                color: "#222",
+                                                                fontWeight: 500,
+                                                            }}
+                                                        >
+                                                            {user
+                                                                ? user.name
+                                                                : "-"}
+                                                        </td>
+                                                        <td
+                                                            style={{
+                                                                padding: 14,
+                                                                border: "1.5px solid #c7d2fe",
+                                                                color: "#222",
+                                                                fontWeight: 500,
+                                                            }}
+                                                        >
+                                                            {tax.name || "-"}
+                                                        </td>
+                                                        <td
+                                                            style={{
+                                                                padding: 14,
+                                                                border: "1.5px solid #c7d2fe",
+                                                                color: "#222",
+                                                                fontWeight: 500,
+                                                            }}
+                                                        >
+                                                            {tax.address || "-"}
+                                                        </td>
+                                                        <td
+                                                            style={{
+                                                                padding: 14,
+                                                                border: "1.5px solid #c7d2fe",
+                                                                color: "#222",
+                                                                fontWeight: 500,
+                                                            }}
+                                                        >
+                                                            {tax.year || "-"}
+                                                        </td>
+                                                        <td
+                                                            style={{
+                                                                padding: 14,
+                                                                border: "1.5px solid #c7d2fe",
+                                                                color: "#222",
+                                                                fontWeight: 500,
+                                                            }}
+                                                        >
+                                                            {tax.status || "-"}
+                                                        </td>
+                                                        <td
+                                                            style={{
+                                                                padding: 14,
+                                                                border: "1.5px solid #c7d2fe",
+                                                                color: "#222",
+                                                                fontWeight: 500,
+                                                            }}
+                                                        >
+                                                            {tax.jumlah !==
+                                                                undefined &&
+                                                            tax.jumlah !==
+                                                                null &&
+                                                            tax.jumlah !==
+                                                                "" ? (
+                                                                `Rp ${parseFloat(
+                                                                    tax.jumlah
+                                                                ).toLocaleString(
+                                                                    "id-ID"
+                                                                )}`
+                                                            ) : tax.total !==
+                                                                  undefined &&
+                                                              tax.total !==
+                                                                  null &&
+                                                              tax.total !==
+                                                                  "" ? (
+                                                                `Rp ${parseFloat(
+                                                                    tax.total
+                                                                ).toLocaleString(
+                                                                    "id-ID"
+                                                                )}`
+                                                            ) : tax.nominal !==
+                                                                  undefined &&
+                                                              tax.nominal !==
+                                                                  null &&
+                                                              tax.nominal !==
+                                                                  "" ? (
+                                                                `Rp ${parseFloat(
+                                                                    tax.nominal
+                                                                ).toLocaleString(
+                                                                    "id-ID"
+                                                                )}`
+                                                            ) : (
+                                                                <span
+                                                                    style={{
+                                                                        color: "red",
+                                                                    }}
+                                                                >
+                                                                    -
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })
+                                        )}
+                                    </tbody>
+                                </table>
+                                <Pagination
+                                    page={taxPage}
+                                    setPage={setTaxPage}
+                                    totalPages={taxTotalPages}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -833,11 +1134,46 @@ export default function AdminDashboardPage() {
                     .dashboard-header, .dashboard-stats { flex-direction: column !important; gap: 12px !important; }
                     table { font-size: 13px !important; }
                     th, td { padding: 8px !important; }
+                    
+                    /* Mobile card styling */
+                    #user-list, #tax-list {
+                        margin: 16px 8px 16px 8px !important;
+                        padding: 12px !important;
+                    }
+                    
+                    /* Mobile pagination styling */
+                    .pagination-container {
+                        display: flex !important;
+                        gap: 6px !important;
+                        justify-content: center !important;
+                        margin: 16px 0 0 0 !important;
+                        flex-wrap: wrap !important;
+                    }
+                    .pagination-container button {
+                        min-width: 36px !important;
+                        height: 36px !important;
+                        font-size: 14px !important;
+                        padding: 6px 10px !important;
+                    }
                 }
                 @media (max-width: 500px) {
                     main { padding: 0 1vw !important; }
                     h1, h3 { font-size: 17px !important; }
                     .dashboard-header { gap: 8px !important; }
+                    
+                    /* Card styling for very small screens */
+                    #user-list, #tax-list {
+                        margin: 12px 4px 12px 4px !important;
+                        padding: 8px !important;
+                    }
+                    
+                    /* Smaller pagination for very small screens */
+                    .pagination-container button {
+                        min-width: 32px !important;
+                        height: 32px !important;
+                        font-size: 13px !important;
+                        padding: 4px 8px !important;
+                    }
                 }
             `}</style>
         </div>
@@ -947,6 +1283,7 @@ function Pagination({ page, setPage, totalPages }) {
     for (let i = 1; i <= totalPages; i++) pages.push(i)
     return (
         <div
+            className="pagination-container"
             style={{
                 display: "flex",
                 gap: 8,

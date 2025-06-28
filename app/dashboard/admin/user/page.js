@@ -77,7 +77,7 @@ export default function UserListPage() {
                     body: JSON.stringify(payload),
                 })
             } else {
-                res = await fetch(`/api/admin/users/${modal.user._id}`, {
+                res = await fetch(`/api/admin/users`, {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ ...payload, _id: modal.user._id }),
@@ -135,148 +135,426 @@ export default function UserListPage() {
                         >
                             Listing User
                         </h2>
+
+                        {/* Desktop Add Button */}
+                        <div
+                            style={{
+                                display: isMobile ? "none" : "block",
+                                marginBottom: 16,
+                            }}
+                        >
+                            <button
+                                onClick={() =>
+                                    setModal({
+                                        open: true,
+                                        mode: "add",
+                                        user: null,
+                                    })
+                                }
+                                style={{
+                                    ...btnStyle,
+                                    background: "#2563eb",
+                                    color: "#fff",
+                                    padding: "10px 20px",
+                                }}
+                            >
+                                + Tambah User
+                            </button>
+                        </div>
                         {loading ? (
                             <LoadingSpinner text="Memuat data user..." />
                         ) : (
-                            <table
-                                style={{
-                                    width: "100%",
-                                    borderCollapse: "collapse",
-                                    background: "#fff",
-                                }}
-                            >
-                                <thead>
-                                    <tr style={{ background: "#e0e7ff" }}>
-                                        <th style={thStyle}>Nama</th>
-                                        <th style={thStyle}>Email</th>
-                                        <th style={thStyle}>Role</th>
-                                        <th style={thStyle}>Status</th>
-                                        <th style={thStyle}>Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+                            <>
+                                {/* Mobile Card View */}
+                                <div
+                                    style={{
+                                        display: isMobile ? "block" : "none",
+                                    }}
+                                >
                                     {users.length === 0 ? (
-                                        <tr>
-                                            <td
-                                                colSpan={4}
-                                                style={{
-                                                    textAlign: "center",
-                                                    color: "#888",
-                                                    padding: 28,
-                                                }}
-                                            >
-                                                Tidak ada data user
-                                            </td>
-                                        </tr>
+                                        <div
+                                            style={{
+                                                textAlign: "center",
+                                                color: "#888",
+                                                padding: 28,
+                                            }}
+                                        >
+                                            Tidak ada data user
+                                        </div>
                                     ) : (
-                                        users.map((user, idx) => (
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                flexDirection: "column",
+                                                gap: 12,
+                                            }}
+                                        >
+                                            {users.map((user, idx) => (
+                                                <div
+                                                    key={user._id || idx}
+                                                    style={{
+                                                        background: "#f8fafc",
+                                                        borderRadius: 12,
+                                                        padding: 16,
+                                                        border: "1px solid #e2e8f0",
+                                                        boxShadow:
+                                                            "0 2px 4px rgba(0,0,0,0.05)",
+                                                    }}
+                                                >
+                                                    <div
+                                                        style={{
+                                                            display: "flex",
+                                                            justifyContent:
+                                                                "space-between",
+                                                            alignItems:
+                                                                "flex-start",
+                                                            marginBottom: 12,
+                                                        }}
+                                                    >
+                                                        <div
+                                                            style={{ flex: 1 }}
+                                                        >
+                                                            <div
+                                                                style={{
+                                                                    fontWeight: 600,
+                                                                    color: "#2563eb",
+                                                                    fontSize: 16,
+                                                                    marginBottom: 4,
+                                                                }}
+                                                            >
+                                                                {user.name}
+                                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    color: "#6b7280",
+                                                                    fontSize: 14,
+                                                                    marginBottom: 4,
+                                                                }}
+                                                            >
+                                                                {user.email}
+                                                            </div>
+                                                            <div
+                                                                style={{
+                                                                    display:
+                                                                        "flex",
+                                                                    alignItems:
+                                                                        "center",
+                                                                    gap: 8,
+                                                                    marginBottom: 8,
+                                                                }}
+                                                            >
+                                                                <span
+                                                                    style={{
+                                                                        background:
+                                                                            user.role ===
+                                                                            "admin"
+                                                                                ? "#2563eb"
+                                                                                : "#10b981",
+                                                                        color: "white",
+                                                                        padding:
+                                                                            "4px 8px",
+                                                                        borderRadius: 6,
+                                                                        fontSize: 12,
+                                                                        fontWeight: 600,
+                                                                        textTransform:
+                                                                            "capitalize",
+                                                                    }}
+                                                                >
+                                                                    {user.role ||
+                                                                        "user"}
+                                                                </span>
+                                                                <span
+                                                                    style={{
+                                                                        color: user.isActive
+                                                                            ? "#16a34a"
+                                                                            : "#ef4444",
+                                                                        fontWeight: 600,
+                                                                        fontSize: 12,
+                                                                    }}
+                                                                >
+                                                                    {user.isActive
+                                                                        ? "Aktif"
+                                                                        : "Nonaktif"}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div
+                                                            style={{
+                                                                width: 44,
+                                                                height: 24,
+                                                                borderRadius: 12,
+                                                                background:
+                                                                    user.isActive
+                                                                        ? "#16a34a"
+                                                                        : "#ef4444",
+                                                                position:
+                                                                    "relative",
+                                                                cursor: "pointer",
+                                                                transition:
+                                                                    "background 0.3s",
+                                                                display:
+                                                                    "inline-block",
+                                                                verticalAlign:
+                                                                    "middle",
+                                                            }}
+                                                            onClick={async () => {
+                                                                await fetch(
+                                                                    "/api/admin/users",
+                                                                    {
+                                                                        method: "PUT",
+                                                                        headers:
+                                                                            {
+                                                                                "Content-Type":
+                                                                                    "application/json",
+                                                                            },
+                                                                        body: JSON.stringify(
+                                                                            {
+                                                                                _id: user._id,
+                                                                                name: user.name,
+                                                                                email: user.email,
+                                                                                role: user.role,
+                                                                                isActive:
+                                                                                    !user.isActive,
+                                                                            }
+                                                                        ),
+                                                                    }
+                                                                )
+                                                                fetchUsers()
+                                                            }}
+                                                            title={
+                                                                user.isActive
+                                                                    ? "Nonaktifkan user"
+                                                                    : "Aktifkan user"
+                                                            }
+                                                        >
+                                                            <span
+                                                                style={{
+                                                                    position:
+                                                                        "absolute",
+                                                                    top: 3,
+                                                                    left: user.isActive
+                                                                        ? 23
+                                                                        : 3,
+                                                                    width: 18,
+                                                                    height: 18,
+                                                                    borderRadius:
+                                                                        "50%",
+                                                                    background:
+                                                                        "#fff",
+                                                                    boxShadow:
+                                                                        "0 1px 4px rgba(0,0,0,0.2)",
+                                                                    transition:
+                                                                        "left 0.3s",
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div
+                                                        style={{
+                                                            display: "flex",
+                                                            gap: 8,
+                                                        }}
+                                                    >
+                                                        <button
+                                                            onClick={() =>
+                                                                openEdit(user)
+                                                            }
+                                                            style={{
+                                                                ...btnStyle,
+                                                                background:
+                                                                    "#fbbf24",
+                                                                color: "#fff",
+                                                                flex: 1,
+                                                                padding:
+                                                                    "8px 12px",
+                                                                fontSize: 14,
+                                                            }}
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={() =>
+                                                                handleDelete(
+                                                                    user
+                                                                )
+                                                            }
+                                                            style={{
+                                                                ...btnStyle,
+                                                                background:
+                                                                    "#ef4444",
+                                                                color: "#fff",
+                                                                flex: 1,
+                                                                padding:
+                                                                    "8px 12px",
+                                                                fontSize: 14,
+                                                            }}
+                                                        >
+                                                            Hapus
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Desktop Table View */}
+                                <div
+                                    style={{
+                                        display: isMobile ? "none" : "block",
+                                    }}
+                                >
+                                    <table
+                                        style={{
+                                            width: "100%",
+                                            borderCollapse: "collapse",
+                                            background: "#fff",
+                                        }}
+                                    >
+                                        <thead>
                                             <tr
-                                                key={user._id || idx}
                                                 style={{
-                                                    background:
-                                                        idx % 2 === 0
-                                                            ? "#fff"
-                                                            : "#f9fafb",
+                                                    background: "#e0e7ff",
                                                 }}
                                             >
-                                                <td style={tdStyle}>
-                                                    {user.name}
-                                                </td>
-                                                <td style={tdStyle}>
-                                                    {user.email}
-                                                </td>
-                                                <td style={tdStyle}>
-                                                    {user.role || "user"}
-                                                </td>
-                                                <td style={tdStyle}>
-                                                    <span
-                                                        style={{
-                                                            color: user.isActive
-                                                                ? "#16a34a"
-                                                                : "#ef4444",
-                                                            fontWeight: 600,
-                                                            marginRight: 8,
-                                                        }}
-                                                    >
-                                                        {user.isActive
-                                                            ? "Aktif"
-                                                            : "Nonaktif"}
-                                                    </span>
-                                                    <span
-                                                        className={`toggle-switch${
-                                                            user.isActive
-                                                                ? " active"
-                                                                : ""
-                                                        }`}
-                                                        onClick={async () => {
-                                                            await fetch(
-                                                                "/api/admin/users",
-                                                                {
-                                                                    method: "PUT",
-                                                                    headers: {
-                                                                        "Content-Type":
-                                                                            "application/json",
-                                                                    },
-                                                                    body: JSON.stringify(
-                                                                        {
-                                                                            _id: user._id,
-                                                                            name: user.name,
-                                                                            email: user.email,
-                                                                            role: user.role,
-                                                                            isActive:
-                                                                                !user.isActive,
-                                                                        }
-                                                                    ),
-                                                                }
-                                                            )
-                                                            fetchUsers()
-                                                        }}
-                                                        title={
-                                                            user.isActive
-                                                                ? "Nonaktifkan user"
-                                                                : "Aktifkan user"
-                                                        }
-                                                        style={{
-                                                            marginLeft: 2,
-                                                        }}
-                                                    >
-                                                        <span className="toggle-knob" />
-                                                    </span>
-                                                </td>
-                                                <td style={tdStyle}>
-                                                    <button
-                                                        onClick={() =>
-                                                            openEdit(user)
-                                                        }
-                                                        style={{
-                                                            ...btnStyle,
-                                                            background:
-                                                                "#fbbf24",
-                                                            color: "#fff",
-                                                        }}
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                    <button
-                                                        onClick={() =>
-                                                            handleDelete(user)
-                                                        }
-                                                        style={{
-                                                            ...btnStyle,
-                                                            background:
-                                                                "#ef4444",
-                                                            color: "#fff",
-                                                            marginLeft: 8,
-                                                        }}
-                                                    >
-                                                        Hapus
-                                                    </button>
-                                                </td>
+                                                <th style={thStyle}>Nama</th>
+                                                <th style={thStyle}>Email</th>
+                                                <th style={thStyle}>Role</th>
+                                                <th style={thStyle}>Status</th>
+                                                <th style={thStyle}>Aksi</th>
                                             </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                                        </thead>
+                                        <tbody>
+                                            {users.length === 0 ? (
+                                                <tr>
+                                                    <td
+                                                        colSpan={4}
+                                                        style={{
+                                                            textAlign: "center",
+                                                            color: "#888",
+                                                            padding: 28,
+                                                        }}
+                                                    >
+                                                        Tidak ada data user
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                users.map((user, idx) => (
+                                                    <tr
+                                                        key={user._id || idx}
+                                                        style={{
+                                                            background:
+                                                                idx % 2 === 0
+                                                                    ? "#fff"
+                                                                    : "#f9fafb",
+                                                        }}
+                                                    >
+                                                        <td style={tdStyle}>
+                                                            {user.name}
+                                                        </td>
+                                                        <td style={tdStyle}>
+                                                            {user.email}
+                                                        </td>
+                                                        <td style={tdStyle}>
+                                                            {user.role ||
+                                                                "user"}
+                                                        </td>
+                                                        <td style={tdStyle}>
+                                                            <span
+                                                                style={{
+                                                                    color: user.isActive
+                                                                        ? "#16a34a"
+                                                                        : "#ef4444",
+                                                                    fontWeight: 600,
+                                                                    marginRight: 8,
+                                                                }}
+                                                            >
+                                                                {user.isActive
+                                                                    ? "Aktif"
+                                                                    : "Nonaktif"}
+                                                            </span>
+                                                            <span
+                                                                className={`toggle-switch${
+                                                                    user.isActive
+                                                                        ? " active"
+                                                                        : ""
+                                                                }`}
+                                                                onClick={async () => {
+                                                                    await fetch(
+                                                                        "/api/admin/users",
+                                                                        {
+                                                                            method: "PUT",
+                                                                            headers:
+                                                                                {
+                                                                                    "Content-Type":
+                                                                                        "application/json",
+                                                                                },
+                                                                            body: JSON.stringify(
+                                                                                {
+                                                                                    _id: user._id,
+                                                                                    name: user.name,
+                                                                                    email: user.email,
+                                                                                    role: user.role,
+                                                                                    isActive:
+                                                                                        !user.isActive,
+                                                                                }
+                                                                            ),
+                                                                        }
+                                                                    )
+                                                                    fetchUsers()
+                                                                }}
+                                                                title={
+                                                                    user.isActive
+                                                                        ? "Nonaktifkan user"
+                                                                        : "Aktifkan user"
+                                                                }
+                                                                style={{
+                                                                    marginLeft: 2,
+                                                                }}
+                                                            >
+                                                                <span className="toggle-knob" />
+                                                            </span>
+                                                        </td>
+                                                        <td style={tdStyle}>
+                                                            <button
+                                                                onClick={() =>
+                                                                    openEdit(
+                                                                        user
+                                                                    )
+                                                                }
+                                                                style={{
+                                                                    ...btnStyle,
+                                                                    background:
+                                                                        "#fbbf24",
+                                                                    color: "#fff",
+                                                                }}
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                            <button
+                                                                onClick={() =>
+                                                                    handleDelete(
+                                                                        user
+                                                                    )
+                                                                }
+                                                                style={{
+                                                                    ...btnStyle,
+                                                                    background:
+                                                                        "#ef4444",
+                                                                    color: "#fff",
+                                                                    marginLeft: 8,
+                                                                }}
+                                                            >
+                                                                Hapus
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
                         )}
                         {/* Modal */}
                         {modal.open && (
@@ -447,6 +725,48 @@ export default function UserListPage() {
                         )}
                     </div>
                 </main>
+
+                {/* Mobile Floating Action Button */}
+                {isMobile && (
+                    <button
+                        onClick={() =>
+                            setModal({ open: true, mode: "add", user: null })
+                        }
+                        style={{
+                            position: "fixed",
+                            bottom: 20,
+                            right: 20,
+                            width: 56,
+                            height: 56,
+                            borderRadius: "50%",
+                            background: "#2563eb",
+                            color: "#fff",
+                            border: "none",
+                            fontSize: 24,
+                            fontWeight: "bold",
+                            boxShadow: "0 4px 12px rgba(37, 99, 235, 0.4)",
+                            cursor: "pointer",
+                            zIndex: 1000,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "all 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                            e.target.style.transform = "scale(1.1)"
+                            e.target.style.boxShadow =
+                                "0 6px 16px rgba(37, 99, 235, 0.5)"
+                        }}
+                        onMouseLeave={(e) => {
+                            e.target.style.transform = "scale(1)"
+                            e.target.style.boxShadow =
+                                "0 4px 12px rgba(37, 99, 235, 0.4)"
+                        }}
+                        title="Tambah User"
+                    >
+                        +
+                    </button>
+                )}
             </div>
             <style>{`
                 @media (max-width: 900px) {
@@ -457,10 +777,29 @@ export default function UserListPage() {
                     .sidebar { width: 0 !important; }
                     table { font-size: 13px !important; }
                     th, td { padding: 8px !important; }
+                    
+                    /* Mobile card styling */
+                    main > div {
+                        margin: 20px auto !important;
+                        padding: 16px !important;
+                    }
                 }
                 @media (max-width: 500px) {
                     main { padding: 0 1vw !important; }
                     h1, h3 { font-size: 17px !important; }
+                    
+                    /* Card styling for very small screens */
+                    main > div {
+                        margin: 12px auto !important;
+                        padding: 12px !important;
+                    }
+                    
+                    /* Modal styling for mobile */
+                    form {
+                        min-width: 280px !important;
+                        padding: 20px !important;
+                        margin: 10px !important;
+                    }
                 }
                 input::placeholder, select::placeholder {
                     color: #000 !important;

@@ -123,13 +123,13 @@ export default function ListingDataPage() {
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
             <Navbar />
-            <div className="flex-grow p-4">
-                <div className="max-w-5xl mx-auto bg-white rounded-xl shadow p-8 border mt-8">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                        <div className="text-2xl font-bold text-blue-700">
+            <div className="flex-grow p-2 sm:p-4">
+                <div className="max-w-5xl mx-auto bg-white rounded-xl shadow p-4 sm:p-8 border mt-4 sm:mt-8">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+                        <div className="text-xl md:text-2xl font-bold text-blue-700">
                             Listing Data Pajak
                         </div>
-                        <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-2 items-stretch">
                             <input
                                 type="text"
                                 placeholder="Cari nama/alamat..."
@@ -200,26 +200,29 @@ export default function ListingDataPage() {
                     ) : (
                         <>
                             {/* Tabel untuk desktop */}
-                            <div className="overflow-x-auto rounded-lg border border-gray-100 hidden md:block">
-                                <table className="min-w-[700px] w-full text-sm align-middle">
-                                    <thead>
-                                        <tr className="bg-blue-50 text-blue-700">
-                                            <th className="px-3 py-2 text-left whitespace-nowrap">
+                            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm mb-6">
+                                <table className="min-w-[900px] w-full text-sm align-middle">
+                                    <thead className="sticky top-0 z-10">
+                                        <tr className="bg-blue-100 text-blue-800">
+                                            <th className="px-4 py-3 text-left font-bold whitespace-nowrap border-b border-blue-200">
+                                                Nama UserId
+                                            </th>
+                                            <th className="px-4 py-3 text-left font-bold whitespace-nowrap border-b border-blue-200">
                                                 Nama
                                             </th>
-                                            <th className="px-3 py-2 text-left whitespace-nowrap">
+                                            <th className="px-4 py-3 text-left font-bold whitespace-nowrap border-b border-blue-200">
                                                 Alamat
                                             </th>
-                                            <th className="px-3 py-2 text-center whitespace-nowrap">
+                                            <th className="px-4 py-3 text-center font-bold whitespace-nowrap border-b border-blue-200">
                                                 Tahun
                                             </th>
-                                            <th className="px-3 py-2 text-right whitespace-nowrap">
-                                                Total
-                                            </th>
-                                            <th className="px-3 py-2 text-center whitespace-nowrap">
+                                            <th className="px-4 py-3 text-center font-bold whitespace-nowrap border-b border-blue-200">
                                                 Status
                                             </th>
-                                            <th className="px-3 py-2 text-center whitespace-nowrap">
+                                            <th className="px-4 py-3 text-right font-bold whitespace-nowrap border-b border-blue-200">
+                                                Total
+                                            </th>
+                                            <th className="px-4 py-3 text-center font-bold whitespace-nowrap border-b border-blue-200">
                                                 Aksi
                                             </th>
                                         </tr>
@@ -228,299 +231,258 @@ export default function ListingDataPage() {
                                         {paged.map((t, i) => (
                                             <tr
                                                 key={i}
-                                                className={`border-b last:border-0 hover:bg-blue-50 transition ${
+                                                className={`transition-colors duration-150 ${
                                                     i % 2 === 0
                                                         ? "bg-white"
-                                                        : "bg-gray-50"
-                                                }`}
+                                                        : "bg-blue-50"
+                                                } hover:bg-blue-100`}
                                             >
-                                                <td className="px-3 py-2 font-semibold text-blue-900 whitespace-nowrap">
+                                                <td className="px-4 py-3 font-semibold text-blue-900 whitespace-nowrap border-b border-gray-100 text-left">
+                                                    {t.userid || "ADMIN"}
+                                                </td>
+                                                <td className="px-4 py-3 text-gray-900 whitespace-nowrap border-b border-gray-100 text-left">
                                                     {t.name}
                                                 </td>
-                                                <td className="px-3 py-2 text-gray-700 whitespace-nowrap">
+                                                <td className="px-4 py-3 text-gray-700 max-w-xs truncate border-b border-gray-100 text-left">
                                                     {t.address}
                                                 </td>
-                                                <td className="px-3 py-2 text-gray-700 text-center whitespace-nowrap">
+                                                <td className="px-4 py-3 text-center text-gray-700 border-b border-gray-100">
                                                     {t.year}
                                                 </td>
-                                                <td className="px-3 py-2 text-right font-mono text-blue-700 whitespace-nowrap">
-                                                    Rp{" "}
-                                                    {Number(
-                                                        t.total
-                                                    ).toLocaleString("id-ID")}
-                                                </td>
-                                                <td className="px-3 py-2 text-center whitespace-nowrap">
+                                                <td className="px-4 py-3 text-center border-b border-gray-100">
                                                     {t.status === "lunas" && (
                                                         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
-                                                            <svg
-                                                                width="14"
-                                                                height="14"
-                                                                fill="none"
-                                                                viewBox="0 0 24 24"
-                                                            >
-                                                                <circle
-                                                                    cx="12"
-                                                                    cy="12"
-                                                                    r="10"
-                                                                    fill="#dcfce7"
-                                                                />
-                                                                <path
-                                                                    d="M8 12l2 2 4-4"
-                                                                    stroke="#22c55e"
-                                                                    strokeWidth="2"
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                />
-                                                            </svg>
                                                             Lunas
                                                         </span>
                                                     )}
                                                     {t.status ===
                                                         "belum_lunas" && (
                                                         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold">
-                                                            <svg
-                                                                width="14"
-                                                                height="14"
-                                                                fill="none"
-                                                                viewBox="0 0 24 24"
-                                                            >
-                                                                <circle
-                                                                    cx="12"
-                                                                    cy="12"
-                                                                    r="10"
-                                                                    fill="#fee2e2"
-                                                                />
-                                                                <path
-                                                                    d="M15 9l-6 6M9 9l6 6"
-                                                                    stroke="#ef4444"
-                                                                    strokeWidth="2"
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                />
-                                                            </svg>
                                                             Belum Lunas
                                                         </span>
                                                     )}
                                                     {t.status === "proses" && (
                                                         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold">
-                                                            <svg
-                                                                width="14"
-                                                                height="14"
-                                                                fill="none"
-                                                                viewBox="0 0 24 24"
-                                                            >
-                                                                <circle
-                                                                    cx="12"
-                                                                    cy="12"
-                                                                    r="10"
-                                                                    fill="#fef9c3"
-                                                                />
-                                                                <path
-                                                                    d="M12 8v4l2 2"
-                                                                    stroke="#eab308"
-                                                                    strokeWidth="2"
-                                                                    strokeLinecap="round"
-                                                                    strokeLinejoin="round"
-                                                                />
-                                                            </svg>
                                                             Proses
                                                         </span>
                                                     )}
                                                 </td>
-                                                <td className="px-3 py-2 text-center whitespace-nowrap flex flex-wrap gap-2 justify-center">
-                                                    <button
-                                                        className="px-2 py-1 rounded bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200"
-                                                        onClick={() =>
-                                                            setModal({
-                                                                type: "detail",
-                                                                data: t,
-                                                            })
-                                                        }
-                                                    >
-                                                        Detail
-                                                    </button>
-                                                    <button
-                                                        className="px-2 py-1 rounded bg-yellow-100 text-yellow-700 text-xs font-semibold hover:bg-yellow-200"
-                                                        onClick={() =>
-                                                            setModal({
-                                                                type: "edit",
-                                                                data: t,
-                                                            })
-                                                        }
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                    <button
-                                                        className="px-2 py-1 rounded bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200"
-                                                        onClick={() =>
-                                                            handleDelete(t.id)
-                                                        }
-                                                    >
-                                                        Hapus
-                                                    </button>
+                                                <td className="px-4 py-3 text-right font-mono text-blue-700 border-b border-gray-100">
+                                                    Rp{" "}
+                                                    {Number(
+                                                        t.total
+                                                    ).toLocaleString("id-ID")}
+                                                </td>
+                                                <td className="px-4 py-3 text-center border-b border-gray-100">
+                                                    <div className="flex flex-nowrap gap-1 justify-center">
+                                                        <button
+                                                            className="p-2 rounded-lg hover:bg-blue-100 text-blue-700 transition-all duration-200 group relative"
+                                                            onClick={() =>
+                                                                setModal({
+                                                                    type: "detail",
+                                                                    data: t,
+                                                                })
+                                                            }
+                                                            aria-label="Detail"
+                                                            title="Detail"
+                                                        >
+                                                            <svg
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                                fill="none"
+                                                                viewBox="0 0 24 24"
+                                                                strokeWidth={
+                                                                    1.5
+                                                                }
+                                                                stroke="currentColor"
+                                                                className="w-5 h-5 group-hover:scale-110 transition-transform duration-200"
+                                                            >
+                                                                <path
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                    d="M2.25 12C2.25 12 5.25 5.25 12 5.25c6.75 0 9.75 6.75 9.75 6.75s-3 6.75-9.75 6.75c-6.75 0-9.75-6.75-9.75-6.75z"
+                                                                />
+                                                                <circle
+                                                                    cx="12"
+                                                                    cy="12"
+                                                                    r="3"
+                                                                />
+                                                            </svg>
+                                                        </button>
+                                                        <button
+                                                            className="p-2 rounded-lg hover:bg-yellow-100 text-yellow-700 transition-all duration-200 group relative"
+                                                            onClick={() =>
+                                                                setModal({
+                                                                    type: "edit",
+                                                                    data: t,
+                                                                })
+                                                            }
+                                                            aria-label="Edit"
+                                                            title="Edit"
+                                                        >
+                                                            <svg
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                                fill="none"
+                                                                viewBox="0 0 24 24"
+                                                                strokeWidth={
+                                                                    1.5
+                                                                }
+                                                                stroke="currentColor"
+                                                                className="w-5 h-5 group-hover:scale-110 transition-transform duration-200"
+                                                            >
+                                                                <path
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                    d="M16.862 4.487a2.1 2.1 0 1 1 2.97 2.97L7.5 19.789l-4.243.707.707-4.243L16.862 4.487z"
+                                                                />
+                                                            </svg>
+                                                        </button>
+                                                        <button
+                                                            className="p-2 rounded-lg hover:bg-red-100 text-red-700 transition-all duration-200 group relative"
+                                                            onClick={() =>
+                                                                handleDelete(
+                                                                    t.id
+                                                                )
+                                                            }
+                                                            aria-label="Hapus"
+                                                            title="Hapus"
+                                                        >
+                                                            <svg
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                                fill="none"
+                                                                viewBox="0 0 24 24"
+                                                                strokeWidth={
+                                                                    1.5
+                                                                }
+                                                                stroke="currentColor"
+                                                                className="w-5 h-5 group-hover:scale-110 transition-transform duration-200"
+                                                            >
+                                                                <path
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                    d="M6 18L18 6M6 6l12 12"
+                                                                />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
-                                {/* Pagination */}
-                                <div className="flex justify-between items-center mt-4 gap-2 flex-wrap">
-                                    <div className="text-sm text-gray-500">
-                                        Halaman {page} dari {totalPages}
-                                    </div>
-                                    <div className="flex gap-1 flex-wrap">
-                                        <button
-                                            className="px-3 py-1 rounded bg-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-300"
-                                            onClick={() => setPage(1)}
-                                            disabled={page === 1}
-                                        >
-                                            Awal
-                                        </button>
-                                        <button
-                                            className="px-3 py-1 rounded bg-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-300"
-                                            onClick={() =>
-                                                setPage((p) =>
-                                                    Math.max(1, p - 1)
-                                                )
-                                            }
-                                            disabled={page === 1}
-                                        >
-                                            Sebelumnya
-                                        </button>
-                                        <button
-                                            className="px-3 py-1 rounded bg-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-300"
-                                            onClick={() =>
-                                                setPage((p) =>
-                                                    Math.min(totalPages, p + 1)
-                                                )
-                                            }
-                                            disabled={page === totalPages}
-                                        >
-                                            Berikutnya
-                                        </button>
-                                        <button
-                                            className="px-3 py-1 rounded bg-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-300"
-                                            onClick={() => setPage(totalPages)}
-                                            disabled={page === totalPages}
-                                        >
-                                            Akhir
-                                        </button>
-                                    </div>
-                                </div>
                             </div>
-                            {/* Card untuk mobile */}
-                            <div className="flex flex-col gap-4 md:hidden">
+
+                            {/* Card layout untuk mobile dan tablet */}
+                            <div className="lg:hidden space-y-4">
                                 {paged.map((t, i) => (
                                     <div
                                         key={i}
-                                        className="rounded-xl border bg-white shadow p-4 flex flex-col gap-2"
+                                        className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
                                     >
-                                        <div className="flex items-center justify-between">
-                                            <div className="font-bold text-blue-700 text-lg">
-                                                {t.name}
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="flex-1">
+                                                <h3 className="font-semibold text-blue-900 text-lg mb-1">
+                                                    {t.name}
+                                                </h3>
+                                                <p className="text-gray-600 text-sm mb-2">
+                                                    {t.address}
+                                                </p>
                                             </div>
-                                            {t.status === "lunas" && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
-                                                    <svg
-                                                        width="14"
-                                                        height="14"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <circle
-                                                            cx="12"
-                                                            cy="12"
-                                                            r="10"
-                                                            fill="#dcfce7"
-                                                        />
-                                                        <path
-                                                            d="M8 12l2 2 4-4"
-                                                            stroke="#22c55e"
-                                                            strokeWidth="2"
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                        />
-                                                    </svg>
-                                                    Lunas
-                                                </span>
-                                            )}
-                                            {t.status === "belum_lunas" && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold">
-                                                    <svg
-                                                        width="14"
-                                                        height="14"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <circle
-                                                            cx="12"
-                                                            cy="12"
-                                                            r="10"
-                                                            fill="#fee2e2"
-                                                        />
-                                                        <path
-                                                            d="M15 9l-6 6M9 9l6 6"
-                                                            stroke="#ef4444"
-                                                            strokeWidth="2"
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                        />
-                                                    </svg>
-                                                    Belum Lunas
-                                                </span>
-                                            )}
-                                            {t.status === "proses" && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold">
-                                                    <svg
-                                                        width="14"
-                                                        height="14"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <circle
-                                                            cx="12"
-                                                            cy="12"
-                                                            r="10"
-                                                            fill="#fef9c3"
-                                                        />
-                                                        <path
-                                                            d="M12 8v4l2 2"
-                                                            stroke="#eab308"
-                                                            strokeWidth="2"
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                        />
-                                                    </svg>
-                                                    Proses
-                                                </span>
-                                            )}
+                                            <div className="text-right">
+                                                <div className="text-sm text-gray-500 mb-1">
+                                                    Tahun {t.year}
+                                                </div>
+                                                <div className="font-mono text-blue-700 font-semibold">
+                                                    Rp{" "}
+                                                    {Number(
+                                                        t.total
+                                                    ).toLocaleString("id-ID")}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="text-gray-700 text-sm">
-                                            <span className="font-semibold">
-                                                Alamat:
-                                            </span>{" "}
-                                            {t.address}
-                                        </div>
-                                        <div className="text-gray-700 text-sm">
-                                            <span className="font-semibold">
-                                                Tahun:
-                                            </span>{" "}
-                                            {t.year}
-                                        </div>
-                                        <div className="text-gray-700 text-sm">
-                                            <span className="font-semibold">
-                                                Total:
-                                            </span>{" "}
-                                            <span className="font-mono text-blue-700">
-                                                Rp{" "}
-                                                {Number(t.total).toLocaleString(
-                                                    "id-ID"
+
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div>
+                                                {t.status === "lunas" && (
+                                                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                                                        <svg
+                                                            width="14"
+                                                            height="14"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <circle
+                                                                cx="12"
+                                                                cy="12"
+                                                                r="10"
+                                                                fill="#dcfce7"
+                                                            />
+                                                            <path
+                                                                d="M8 12l2 2 4-4"
+                                                                stroke="#22c55e"
+                                                                strokeWidth="2"
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                            />
+                                                        </svg>
+                                                        Lunas
+                                                    </span>
                                                 )}
-                                            </span>
+                                                {t.status === "belum_lunas" && (
+                                                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold">
+                                                        <svg
+                                                            width="14"
+                                                            height="14"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <circle
+                                                                cx="12"
+                                                                cy="12"
+                                                                r="10"
+                                                                fill="#fee2e2"
+                                                            />
+                                                            <path
+                                                                d="M15 9l-6 6M9 9l6 6"
+                                                                stroke="#ef4444"
+                                                                strokeWidth="2"
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                            />
+                                                        </svg>
+                                                        Belum Lunas
+                                                    </span>
+                                                )}
+                                                {t.status === "proses" && (
+                                                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold">
+                                                        <svg
+                                                            width="14"
+                                                            height="14"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <circle
+                                                                cx="12"
+                                                                cy="12"
+                                                                r="10"
+                                                                fill="#fef9c3"
+                                                            />
+                                                            <path
+                                                                d="M12 8v4l2 2"
+                                                                stroke="#eab308"
+                                                                strokeWidth="2"
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                            />
+                                                        </svg>
+                                                        Proses
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="flex gap-2 mt-2">
+
+                                        <div className="flex gap-2">
                                             <button
-                                                className="px-2 py-1 rounded bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200"
+                                                className="flex-1 px-3 py-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all duration-200 flex items-center justify-center gap-2 group"
                                                 onClick={() =>
                                                     setModal({
                                                         type: "detail",
@@ -528,10 +490,31 @@ export default function ListingDataPage() {
                                                     })
                                                 }
                                             >
-                                                Detail
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    strokeWidth={1.5}
+                                                    stroke="currentColor"
+                                                    className="w-4 h-4 group-hover:scale-110 transition-transform duration-200"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        d="M2.25 12C2.25 12 5.25 5.25 12 5.25c6.75 0 9.75 6.75 9.75 6.75s-3 6.75-9.75 6.75c-6.75 0-9.75-6.75-9.75-6.75z"
+                                                    />
+                                                    <circle
+                                                        cx="12"
+                                                        cy="12"
+                                                        r="3"
+                                                    />
+                                                </svg>
+                                                <span className="text-sm font-semibold">
+                                                    Detail
+                                                </span>
                                             </button>
                                             <button
-                                                className="px-2 py-1 rounded bg-yellow-100 text-yellow-700 text-xs font-semibold hover:bg-yellow-200"
+                                                className="flex-1 px-3 py-2 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 transition-all duration-200 flex items-center justify-center gap-2 group"
                                                 onClick={() =>
                                                     setModal({
                                                         type: "edit",
@@ -539,62 +522,87 @@ export default function ListingDataPage() {
                                                     })
                                                 }
                                             >
-                                                Edit
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    strokeWidth={1.5}
+                                                    stroke="currentColor"
+                                                    className="w-4 h-4 group-hover:scale-110 transition-transform duration-200"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        d="M16.862 4.487a2.1 2.1 0 1 1 2.97 2.97L7.5 19.789l-4.243.707.707-4.243L16.862 4.487z"
+                                                    />
+                                                </svg>
+                                                <span className="text-sm font-semibold">
+                                                    Edit
+                                                </span>
                                             </button>
                                             <button
-                                                className="px-2 py-1 rounded bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200"
+                                                className="flex-1 px-3 py-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-all duration-200 flex items-center justify-center gap-2 group"
                                                 onClick={() =>
                                                     handleDelete(t.id)
                                                 }
                                             >
-                                                Hapus
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    strokeWidth={1.5}
+                                                    stroke="currentColor"
+                                                    className="w-4 h-4 group-hover:scale-110 transition-transform duration-200"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        d="M6 18L18 6M6 6l12 12"
+                                                    />
+                                                </svg>
+                                                <span className="text-sm font-semibold">
+                                                    Hapus
+                                                </span>
                                             </button>
                                         </div>
                                     </div>
                                 ))}
-                                {/* Pagination untuk mobile */}
-                                <div className="flex justify-between items-center mt-4 gap-2 flex-wrap">
-                                    <div className="text-sm text-gray-500">
-                                        Halaman {page} dari {totalPages}
-                                    </div>
-                                    <div className="flex gap-1 flex-wrap">
-                                        <button
-                                            className="px-3 py-1 rounded bg-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-300"
-                                            onClick={() => setPage(1)}
-                                            disabled={page === 1}
-                                        >
-                                            Awal
-                                        </button>
-                                        <button
-                                            className="px-3 py-1 rounded bg-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-300"
-                                            onClick={() =>
-                                                setPage((p) =>
-                                                    Math.max(1, p - 1)
-                                                )
-                                            }
-                                            disabled={page === 1}
-                                        >
-                                            Sebelumnya
-                                        </button>
-                                        <button
-                                            className="px-3 py-1 rounded bg-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-300"
-                                            onClick={() =>
-                                                setPage((p) =>
-                                                    Math.min(totalPages, p + 1)
-                                                )
-                                            }
-                                            disabled={page === totalPages}
-                                        >
-                                            Berikutnya
-                                        </button>
-                                        <button
-                                            className="px-3 py-1 rounded bg-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-300"
-                                            onClick={() => setPage(totalPages)}
-                                            disabled={page === totalPages}
-                                        >
-                                            Akhir
-                                        </button>
-                                    </div>
+                            </div>
+
+                            {/* Pagination */}
+                            <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+                                <div className="text-sm text-gray-500 text-center sm:text-left">
+                                    Halaman {page} dari {totalPages} (
+                                    {filtered.length} data)
+                                </div>
+                                <div className="flex gap-2 flex-wrap justify-center">
+                                    <button
+                                        className="px-3 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        onClick={() => setPage(1)}
+                                        disabled={page === 1}
+                                    >
+                                        Awal
+                                    </button>
+                                    <button
+                                        className="px-3 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        onClick={() =>
+                                            setPage((p) => Math.max(1, p - 1))
+                                        }
+                                        disabled={page === 1}
+                                    >
+                                        Sebelumnya
+                                    </button>
+                                    <button
+                                        className="px-3 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        onClick={() =>
+                                            setPage((p) =>
+                                                Math.min(totalPages, p + 1)
+                                            )
+                                        }
+                                        disabled={page === totalPages}
+                                    >
+                                        Berikutnya
+                                    </button>
                                 </div>
                             </div>
                         </>

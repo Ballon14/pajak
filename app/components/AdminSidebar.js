@@ -142,6 +142,45 @@ export default function AdminSidebar({ open, setOpen }) {
                     ✕
                 </button>
             )}
+
+            {/* Tombol collapse untuk desktop */}
+            {!isMobile && open && (
+                <button
+                    onClick={() => setOpen(false)}
+                    style={{
+                        position: "fixed",
+                        top: 32,
+                        left: 230,
+                        zIndex: 201,
+                        background: "#1e3a8a",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "0 8px 8px 0",
+                        width: 36,
+                        height: 56,
+                        fontSize: 28,
+                        boxShadow: "2px 0 8px rgba(30,58,138,0.3)",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}
+                    onMouseEnter={(e) => {
+                        e.target.style.transform = "scale(1.05)"
+                        e.target.style.boxShadow =
+                            "2px 0 12px rgba(30,58,138,0.4)"
+                    }}
+                    onMouseLeave={(e) => {
+                        e.target.style.transform = "scale(1)"
+                        e.target.style.boxShadow =
+                            "2px 0 8px rgba(30,58,138,0.3)"
+                    }}
+                    aria-label="Tutup sidebar"
+                >
+                    &lt;
+                </button>
+            )}
             <aside
                 ref={sidebarRef}
                 style={{

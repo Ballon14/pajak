@@ -5,17 +5,10 @@ const prisma = new PrismaClient()
 
 export async function GET() {
     try {
-<<<<<<< Updated upstream
         // Test database connection with MongoDB-compatible query
         await prisma.user.findFirst({
             select: { id: true },
         })
-=======
-        // Test database connection
-        await prisma.user.findFirst({
-		select: { id:true }
-	})
->>>>>>> Stashed changes
 
         const healthData = {
             status: "healthy",

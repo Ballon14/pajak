@@ -22,6 +22,11 @@ export default function UserListPage() {
 
     useEffect(() => {
         fetchUsers()
+        // Polling setiap 5 detik
+        const interval = setInterval(() => {
+            fetchUsers()
+        }, 5000)
+        return () => clearInterval(interval)
     }, [])
 
     useEffect(() => {

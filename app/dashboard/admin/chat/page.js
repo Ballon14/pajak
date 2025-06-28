@@ -68,8 +68,11 @@ export default function AdminChatPage() {
     useEffect(() => {
         fetchMessages()
         fetchDatabaseUsers()
-        // Hanya fetch sekali saat komponen mount, tidak perlu polling
-        // karena AdminChatNotification sudah handle polling
+        // Polling setiap 5 detik
+        const interval = setInterval(() => {
+            fetchMessages()
+        }, 5000)
+        return () => clearInterval(interval)
     }, [])
 
     useEffect(() => {

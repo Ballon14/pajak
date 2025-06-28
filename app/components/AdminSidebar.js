@@ -2,6 +2,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useState, useEffect, useRef } from "react"
 import { signOut } from "next-auth/react"
+import { useAdminChatNotification } from "./AdminChatNotification"
 
 const menus = [
     { label: "Dashboard", href: "/dashboard/admin", icon: "🏠" },
@@ -14,19 +15,24 @@ export default function AdminSidebar({ open, setOpen }) {
     const pathname = usePathname()
     const router = useRouter()
     const [isMobile, setIsMobile] = useState(false)
+    const { unreadCount } = useAdminChatNotification()
     const sidebarRef = useRef(null)
 
     // Responsif: auto collapse di mobile
     useEffect(() => {
         function handleResize() {
-            setIsMobile(window.innerWidth < 768)
-            if (window.innerWidth < 768) setOpen(false)
-            else setOpen(true)
+            const mobile = window.innerWidth < 768
+            setIsMobile(mobile)
+            if (mobile) {
+                setOpen(false)
+            } else {
+                setOpen(true)
+            }
         }
         handleResize()
         window.addEventListener("resize", handleResize)
         return () => window.removeEventListener("resize", handleResize)
-    }, [])
+    }, [setOpen])
 
     // Close sidebar jika klik di luar (mobile)
     useEffect(() => {
@@ -38,7 +44,7 @@ export default function AdminSidebar({ open, setOpen }) {
         }
         document.addEventListener("mousedown", handleClick)
         return () => document.removeEventListener("mousedown", handleClick)
-    }, [open, isMobile])
+    }, [open, isMobile, setOpen])
 
     const handleLogout = async () => {
         // Optional: tambahkan konfirmasi
@@ -52,23 +58,34 @@ export default function AdminSidebar({ open, setOpen }) {
                 onClick={() => setOpen(true)}
                 style={{
                     position: "fixed",
-                    top: 32,
-                    left: 0,
+                    top: 20,
+                    left: 10,
                     zIndex: 201,
                     background: "#1e3a8a",
                     color: "#fff",
                     border: "none",
-                    borderRadius: "0 8px 8px 0",
-                    width: 36,
-                    height: 56,
-                    fontSize: 28,
-                    boxShadow: "2px 0 8px #1e3a8a22",
+                    borderRadius: "50%",
+                    width: 44,
+                    height: 44,
+                    fontSize: 20,
+                    boxShadow: "0 4px 12px rgba(30,58,138,0.3)",
                     cursor: "pointer",
-                    transition: "background 0.2s, color 0.2s",
+                    transition: "all 0.2s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                }}
+                onMouseEnter={(e) => {
+                    e.target.style.transform = "scale(1.1)"
+                    e.target.style.boxShadow = "0 6px 16px rgba(30,58,138,0.4)"
+                }}
+                onMouseLeave={(e) => {
+                    e.target.style.transform = "scale(1)"
+                    e.target.style.boxShadow = "0 4px 12px rgba(30,58,138,0.3)"
                 }}
                 aria-label="Buka menu"
             >
-                &gt;
+                ☰
             </button>
         )
     }
@@ -85,69 +102,94 @@ export default function AdminSidebar({ open, setOpen }) {
                         left: 0,
                         width: "100vw",
                         height: "100vh",
-                        background: "#0007",
+                        background: "rgba(0,0,0,0.5)",
                         zIndex: 99,
-                        transition: "opacity 0.2s",
+                        transition: "opacity 0.3s ease",
                     }}
                 />
             )}
-            {/* Tombol collapse (<) di luar sidebar */}
-            <button
-                onClick={() => setOpen(false)}
-                style={{
-                    position: "fixed",
-                    top: 32,
-                    left: 230,
-                    zIndex: 201,
-                    background: "#1e3a8a",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "0 8px 8px 0",
-                    width: 36,
-                    height: 56,
-                    fontSize: 28,
-                    boxShadow: "2px 0 8px #1e3a8a22",
-                    cursor: "pointer",
-                    transition: "background 0.2s, color 0.2s",
-                    display: open ? "block" : "none",
-                }}
-                aria-label="Tutup menu"
-            >
-                &lt;
-            </button>
+            {/* Tombol collapse (X) di mobile */}
+            {isMobile && (
+                <button
+                    onClick={() => setOpen(false)}
+                    style={{
+                        position: "fixed",
+                        top: 20,
+                        right: 20,
+                        zIndex: 202,
+                        background: "#ef4444",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "50%",
+                        width: 44,
+                        height: 44,
+                        fontSize: 20,
+                        boxShadow: "0 4px 12px rgba(239,68,68,0.3)",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}
+                    onMouseEnter={(e) => {
+                        e.target.style.transform = "scale(1.1)"
+                    }}
+                    onMouseLeave={(e) => {
+                        e.target.style.transform = "scale(1)"
+                    }}
+                    aria-label="Tutup menu"
+                >
+                    ✕
+                </button>
+            )}
             <aside
                 ref={sidebarRef}
                 style={{
-                    width: open ? 230 : 60,
+                    width: isMobile ? "280px" : open ? 230 : 60,
                     minHeight: "100vh",
                     background: "#1e3a8a",
                     color: "#fff",
-                    padding: open ? "32px 0 0 0" : "18px 0 0 0",
+                    padding: isMobile
+                        ? "32px 0 0 0"
+                        : open
+                        ? "32px 0 0 0"
+                        : "18px 0 0 0",
                     position: "fixed",
                     left: 0,
                     top: 0,
                     display: "flex",
                     flexDirection: "column",
-                    boxShadow: "2px 0 12px #1e3a8a22",
+                    boxShadow: "2px 0 12px rgba(30,58,138,0.3)",
                     zIndex: 120,
                     justifyContent: "space-between",
-                    transition:
-                        "width 1s cubic-bezier(.4,1.2,.4,1), padding 0.18s",
-                    alignItems: open ? "stretch" : "center",
+                    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                    alignItems: isMobile
+                        ? "stretch"
+                        : open
+                        ? "stretch"
+                        : "center",
                     overflow: "hidden",
+                    transform:
+                        isMobile && !open
+                            ? "translateX(-100%)"
+                            : "translateX(0)",
                 }}
             >
                 <div>
                     <div
                         style={{
                             fontWeight: 800,
-                            fontSize: 22,
-                            textAlign: open ? "center" : "left",
-                            marginBottom: open ? 36 : 0,
+                            fontSize: isMobile ? 24 : 22,
+                            textAlign: "center",
+                            marginBottom: isMobile ? 40 : 36,
                             letterSpacing: 1,
-                            display: open ? "block" : "none",
-                            opacity: open ? 1 : 0,
-                            transition: "opacity 1s",
+                            display: isMobile
+                                ? "block"
+                                : open
+                                ? "block"
+                                : "none",
+                            opacity: isMobile ? 1 : open ? 1 : 0,
+                            transition: "opacity 0.3s ease",
                         }}
                     >
                         Admin Panel
@@ -156,55 +198,109 @@ export default function AdminSidebar({ open, setOpen }) {
                         style={{
                             display: "flex",
                             flexDirection: "column",
-                            gap: 6,
-                            alignItems: open ? "stretch" : "center",
+                            gap: isMobile ? 8 : 6,
+                            alignItems: "stretch",
                         }}
                     >
                         {menus.map((menu) => {
                             const isActive = menu.href === pathname
+                            const isChatMenu =
+                                menu.href === "/dashboard/admin/chat"
+
                             return (
                                 <Link
                                     key={menu.href}
                                     href={menu.href}
+                                    onClick={() => isMobile && setOpen(false)}
                                     style={{
                                         ...navStyle,
                                         background: isActive
                                             ? "#2563eb"
                                             : "none",
                                         color: isActive ? "#fff" : "#c7d2fe",
-                                        justifyContent: open
-                                            ? "flex-start"
-                                            : "center",
-                                        padding: open ? "14px 28px" : "14px 0",
-                                        fontSize: open ? 17 : 22,
-                                        width: open ? "auto" : 44,
-                                        minWidth: open ? 0 : 44,
+                                        justifyContent: "flex-start",
+                                        padding: isMobile
+                                            ? "16px 24px"
+                                            : open
+                                            ? "14px 28px"
+                                            : "14px 0",
+                                        fontSize: isMobile
+                                            ? 18
+                                            : open
+                                            ? 17
+                                            : 22,
+                                        width: "auto",
+                                        minWidth: 0,
                                         position: "relative",
-                                        transition:
-                                            "background 0.18s, color 0.18s, padding 0.18s, font-size 0.18s, width 1s cubic-bezier(.4,1.2,.4,1)",
+                                        transition: "all 0.2s ease",
+                                        borderRadius: isMobile ? 12 : 10,
+                                        margin: isMobile ? "0 12px" : "0",
                                     }}
                                     tabIndex={0}
                                 >
                                     <span
                                         style={{
-                                            marginRight: open ? 12 : 0,
-                                            fontSize: 22,
-                                            transition: "margin 0.18s",
+                                            marginRight: isMobile
+                                                ? 16
+                                                : open
+                                                ? 12
+                                                : 0,
+                                            fontSize: isMobile ? 24 : 22,
+                                            transition: "margin 0.2s ease",
+                                            position: "relative",
                                         }}
                                     >
                                         {menu.icon}
+                                        {/* Badge notifikasi untuk chat */}
+                                        {isChatMenu && unreadCount > 0 && (
+                                            <span
+                                                style={{
+                                                    position: "absolute",
+                                                    top: -8,
+                                                    right: -8,
+                                                    background: "#ef4444",
+                                                    color: "white",
+                                                    borderRadius: "50%",
+                                                    width: isMobile ? 20 : 18,
+                                                    height: isMobile ? 20 : 18,
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    fontSize: isMobile
+                                                        ? 11
+                                                        : 10,
+                                                    fontWeight: "bold",
+                                                    animation:
+                                                        "pulse 2s infinite",
+                                                }}
+                                            >
+                                                {unreadCount > 99
+                                                    ? "99+"
+                                                    : unreadCount}
+                                            </span>
+                                        )}
                                     </span>
                                     <span
                                         style={{
-                                            opacity: open ? 1 : 0,
-                                            maxWidth: open ? 200 : 0,
+                                            opacity: isMobile
+                                                ? 1
+                                                : open
+                                                ? 1
+                                                : 0,
+                                            maxWidth: isMobile
+                                                ? "none"
+                                                : open
+                                                ? 200
+                                                : 0,
                                             overflow: "hidden",
                                             whiteSpace: "nowrap",
-                                            transition:
-                                                "opacity 1s, max-width 1s",
-                                            pointerEvents: open
+                                            transition: "all 0.3s ease",
+                                            pointerEvents: isMobile
+                                                ? "auto"
+                                                : open
                                                 ? "auto"
                                                 : "none",
+                                            fontWeight: isMobile ? 600 : 600,
                                         }}
                                     >
                                         {menu.label}
@@ -221,39 +317,59 @@ export default function AdminSidebar({ open, setOpen }) {
                         background: "#ef4444",
                         color: "#fff",
                         border: "none",
-                        margin: open ? 24 : 0,
+                        margin: isMobile ? "24px 12px" : open ? 24 : 0,
                         marginTop: 32,
                         cursor: "pointer",
                         fontWeight: 700,
-                        fontSize: open ? 16 : 22,
-                        boxShadow: "0 2px 8px #ef444422",
-                        width: open ? "auto" : 44,
-                        minWidth: open ? 0 : 44,
-                        justifyContent: open ? "flex-start" : "center",
-                        transition:
-                            "background 0.18s, color 0.18s, font-size 0.18s, width 1s cubic-bezier(.4,1.2,.4,1)",
+                        fontSize: isMobile ? 18 : open ? 16 : 22,
+                        boxShadow: "0 2px 8px rgba(239,68,68,0.3)",
+                        width: "auto",
+                        minWidth: 0,
+                        justifyContent: "flex-start",
+                        transition: "all 0.2s ease",
+                        borderRadius: isMobile ? 12 : 10,
                     }}
                     aria-label="Logout"
                 >
                     <span
                         style={{
-                            fontSize: 22,
-                            marginRight: open ? 10 : 0,
-                            transition: "margin 0.18s",
+                            fontSize: isMobile ? 24 : 22,
+                            marginRight: isMobile ? 16 : open ? 10 : 0,
+                            transition: "margin 0.2s ease",
                         }}
                     >
                         🚪
                     </span>
                     <span
                         style={{
-                            opacity: open ? 1 : 0,
-                            transition: "opacity 1s",
+                            opacity: isMobile ? 1 : open ? 1 : 0,
+                            transition: "opacity 0.3s ease",
                         }}
                     >
-                        {open && "Logout"}
+                        {isMobile || open ? "Logout" : ""}
                     </span>
                 </button>
             </aside>
+
+            <style jsx>{`
+                @keyframes pulse {
+                    0% {
+                        transform: scale(1);
+                    }
+                    50% {
+                        transform: scale(1.1);
+                    }
+                    100% {
+                        transform: scale(1);
+                    }
+                }
+
+                @media (max-width: 768px) {
+                    aside {
+                        width: 280px !important;
+                    }
+                }
+            `}</style>
         </>
     )
 }

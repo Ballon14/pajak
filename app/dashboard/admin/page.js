@@ -2,9 +2,11 @@
 import { useEffect, useState, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import AdminSidebar from "@/app/components/AdminSidebar"
+import { useNotification } from "@/app/components/NotificationToast"
 
 export default function AdminDashboardPage() {
     const { data: session, status } = useSession()
+    const { addNotification } = useNotification()
     const [users, setUsers] = useState([])
     const [taxes, setTaxes] = useState([])
     const [loading, setLoading] = useState(true)
@@ -62,16 +64,30 @@ export default function AdminDashboardPage() {
     useEffect(() => {
         async function fetchData() {
             setLoading(true)
-            const usersRes = await fetch("/api/admin/users")
-            const usersData = await usersRes.json()
-            setUsers(usersData)
-            const taxesRes = await fetch("/api/admin/tax")
-            const taxesData = await taxesRes.json()
-            setTaxes(taxesData)
-            setLoading(false)
+            try {
+                const usersRes = await fetch("/api/admin/users")
+                const usersData = await usersRes.json()
+                setUsers(usersData)
+
+                const taxesRes = await fetch("/api/admin/tax")
+                const taxesData = await taxesRes.json()
+                setTaxes(taxesData)
+
+                // Notifikasi sukses saat data berhasil dimuat
+                addNotification(
+                    `Berhasil memuat ${usersData.length} user dan ${taxesData.length} data pajak`,
+                    "success"
+                )
+            } catch (error) {
+                // Notifikasi error jika gagal memuat data
+                addNotification("Gagal memuat data dashboard", "error")
+                console.error("Error fetching data:", error)
+            } finally {
+                setLoading(false)
+            }
         }
         fetchData()
-    }, [])
+    }, [addNotification])
 
     useEffect(() => {
         function handleResize() {
@@ -83,6 +99,20 @@ export default function AdminDashboardPage() {
         window.addEventListener("resize", handleResize)
         return () => window.removeEventListener("resize", handleResize)
     }, [])
+
+    // Fungsi untuk test notifikasi
+    const testNotifications = () => {
+        addNotification("Test notifikasi sukses!", "success")
+        setTimeout(
+            () => addNotification("Test notifikasi warning!", "warning"),
+            1000
+        )
+        setTimeout(
+            () => addNotification("Test notifikasi error!", "error"),
+            2000
+        )
+        setTimeout(() => addNotification("Test notifikasi info!", "info"), 3000)
+    }
 
     if (status === "loading") return <div>Loading...</div>
     if (!session || session.user.role !== "admin") {
@@ -122,6 +152,7 @@ export default function AdminDashboardPage() {
                         style={{
                             display: "flex",
                             alignItems: "center",
+                            justifyContent: "space-between",
                             gap: 18,
                             padding: "32px 32px 12px 32px",
                             flexWrap: "wrap",
@@ -129,44 +160,80 @@ export default function AdminDashboardPage() {
                     >
                         <div
                             style={{
-                                fontSize: 38,
-                                color: "#2563eb",
-                                background: "#e0e7ff",
-                                borderRadius: 16,
-                                width: 60,
-                                height: 60,
                                 display: "flex",
                                 alignItems: "center",
-                                justifyContent: "center",
-                                minWidth: 60,
+                                gap: 18,
                             }}
                         >
-                            <span role="img" aria-label="admin">
-                                🛡️
-                            </span>
-                        </div>
-                        <div style={{ minWidth: 200 }}>
-                            <h1
-                                style={{
-                                    margin: 0,
-                                    color: "#222",
-                                    fontWeight: 800,
-                                    fontSize: 28,
-                                }}
-                            >
-                                Dashboard Admin
-                            </h1>
                             <div
                                 style={{
-                                    color: "#555",
-                                    fontSize: 16,
-                                    marginTop: 4,
+                                    fontSize: 38,
+                                    color: "#2563eb",
+                                    background: "#e0e7ff",
+                                    borderRadius: 16,
+                                    width: 60,
+                                    height: 60,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    minWidth: 60,
                                 }}
                             >
-                                Kelola data user & pajak secara terpusat dan
-                                efisien.
+                                <span role="img" aria-label="admin">
+                                    🛡️
+                                </span>
+                            </div>
+                            <div style={{ minWidth: 200 }}>
+                                <h1
+                                    style={{
+                                        margin: 0,
+                                        color: "#222",
+                                        fontWeight: 800,
+                                        fontSize: 28,
+                                    }}
+                                >
+                                    Dashboard Admin
+                                </h1>
+                                <div
+                                    style={{
+                                        color: "#555",
+                                        fontSize: 16,
+                                        marginTop: 4,
+                                    }}
+                                >
+                                    Kelola data user & pajak secara terpusat dan
+                                    efisien.
+                                </div>
                             </div>
                         </div>
+
+                        {/* Tombol Test Notifikasi */}
+                        <button
+                            onClick={testNotifications}
+                            style={{
+                                background: "#2563eb",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "8px",
+                                padding: "10px 16px",
+                                fontSize: "14px",
+                                fontWeight: "600",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                transition: "all 0.2s ease",
+                            }}
+                            onMouseEnter={(e) => {
+                                e.target.style.background = "#1d4ed8"
+                            }}
+                            onMouseLeave={(e) => {
+                                e.target.style.background = "#2563eb"
+                            }}
+                        >
+                            <span>🔔</span>
+                            Test Notifikasi
+                        </button>
                     </div>
                     {/* Statistik */}
                     <div

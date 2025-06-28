@@ -1,8 +1,17 @@
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import { useSession } from "next-auth/react"
+import { useNotification } from "./NotificationToast"
+import { useChatNotification, ChatNotificationBadge } from "./ChatNotification"
 
 const SupportChat = () => {
     const { data: session, status } = useSession()
+    const { addNotification } = useNotification()
+    const {
+        unreadCount,
+        resetUnreadCount,
+        requestNotificationPermission,
+        setChatOpen,
+    } = useChatNotification()
     const [open, setOpen] = useState(false)
     const [messages, setMessages] = useState([])
     const [input, setInput] = useState("")
@@ -10,29 +19,50 @@ const SupportChat = () => {
     const [refreshing, setRefreshing] = useState(false)
     const messagesEndRef = useRef(null)
 
+    // Request notification permission on mount
+    useEffect(() => {
+        if ("Notification" in window && Notification.permission === "default") {
+            requestNotificationPermission()
+        }
+    }, [requestNotificationPermission])
+
+    // Update chat open state in notification hook
+    useEffect(() => {
+        setChatOpen(open)
+    }, [open, setChatOpen])
+
     // Ambil pesan hanya untuk user ini
-    const fetchMessages = async () => {
+    const fetchMessages = useCallback(async () => {
         if (!session?.user?.email) return
         setRefreshing(true)
-        const res = await fetch("/api/chat")
-        const data = await res.json()
-        // Filter pesan hanya untuk user ini (berdasarkan email atau id)
-        const filtered = data.filter(
-            (msg) =>
-                msg.email === session.user.email ||
-                msg.userId === session.user.id
-        )
-        setMessages(filtered)
-        setRefreshing(false)
-    }
+        try {
+            const res = await fetch("/api/chat")
+            const data = await res.json()
+
+            // Filter pesan hanya untuk user ini (berdasarkan email atau id)
+            const filtered = data.filter(
+                (msg) =>
+                    msg.email === session.user.email ||
+                    msg.userId === session.user.id
+            )
+
+            setMessages(filtered)
+        } catch (error) {
+            console.error("Error fetching messages:", error)
+            addNotification("Gagal memuat pesan chat", "error")
+        } finally {
+            setRefreshing(false)
+        }
+    }, [session?.user?.email, addNotification])
 
     // Fetch pesan saat pop-up dibuka
     useEffect(() => {
         if (open && session?.user?.email) {
             fetchMessages()
+            // Reset unread count saat chat dibuka
+            resetUnreadCount()
         }
-        // Tidak ada polling interval
-    }, [open, session?.user?.email])
+    }, [open, session?.user?.email, fetchMessages, resetUnreadCount])
 
     useEffect(() => {
         // Auto scroll ke bawah saat pesan bertambah
@@ -58,47 +88,73 @@ const SupportChat = () => {
             })
             setInput("")
             await fetchMessages() // fetch ulang dari backend
+            addNotification("Pesan terkirim!", "success")
         } catch (err) {
-            alert("Gagal mengirim pesan!")
+            addNotification("Gagal mengirim pesan!", "error")
         } finally {
             setLoading(false)
         }
     }
+
+    const handleOpenChat = useCallback(() => {
+        setOpen(true)
+        resetUnreadCount()
+    }, [resetUnreadCount])
+
+    const handleCloseChat = useCallback(() => {
+        setOpen(false)
+    }, [])
 
     if (status === "loading") return null
     if (!session?.user?.email) return null
 
     return (
         <>
-            {/* Tombol chat */}
+            {/* Tombol chat dengan badge notifikasi */}
             {!open && (
-                <button
-                    onClick={() => setOpen(true)}
-                    style={{
-                        position: "fixed",
-                        bottom: 24,
-                        right: 24,
-                        zIndex: 1000,
-                        background: "#2563eb",
-                        color: "white",
-                        borderRadius: "50%",
-                        width: 56,
-                        height: 56,
-                        border: "none",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                        fontSize: 28,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                    }}
-                    aria-label="Buka chat support"
-                >
-                    <span role="img" aria-label="chat">
-                        💬
-                    </span>
-                </button>
+                <div style={{ position: "relative" }}>
+                    <button
+                        onClick={handleOpenChat}
+                        style={{
+                            position: "fixed",
+                            bottom: 24,
+                            right: 24,
+                            zIndex: 1000,
+                            background: "#2563eb",
+                            color: "white",
+                            borderRadius: "50%",
+                            width: 56,
+                            height: 56,
+                            border: "none",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                            fontSize: 28,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "transform 0.2s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                            e.target.style.transform = "scale(1.1)"
+                        }}
+                        onMouseLeave={(e) => {
+                            e.target.style.transform = "scale(1)"
+                        }}
+                        aria-label="Buka chat support"
+                    >
+                        <span role="img" aria-label="chat">
+                            💬
+                        </span>
+                    </button>
+
+                    {/* Badge notifikasi */}
+                    <ChatNotificationBadge
+                        unreadCount={unreadCount}
+                        onClick={handleOpenChat}
+                    />
+                </div>
             )}
+
             {/* Pop-up chat */}
             {open && (
                 <div
@@ -141,19 +197,69 @@ const SupportChat = () => {
                                 💬
                             </span>{" "}
                             Support Chat
+                            {unreadCount > 0 && (
+                                <span
+                                    style={{
+                                        background: "#ef4444",
+                                        color: "white",
+                                        borderRadius: "50%",
+                                        width: 20,
+                                        height: 20,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontSize: 11,
+                                        fontWeight: "bold",
+                                        marginLeft: 8,
+                                    }}
+                                >
+                                    {unreadCount > 99 ? "99+" : unreadCount}
+                                </span>
+                            )}
                         </span>
-                        <button
-                            onClick={() => setOpen(false)}
+                        <div
                             style={{
-                                background: "none",
-                                border: "none",
-                                fontSize: 22,
-                                color: "#fff",
-                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
                             }}
                         >
-                            &times;
-                        </button>
+                            {/* Tombol notifikasi */}
+                            {"Notification" in window &&
+                                Notification.permission === "default" && (
+                                    <button
+                                        onClick={requestNotificationPermission}
+                                        style={{
+                                            background: "rgba(255,255,255,0.2)",
+                                            color: "white",
+                                            border: "none",
+                                            borderRadius: "50%",
+                                            width: 32,
+                                            height: 32,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            cursor: "pointer",
+                                            fontSize: 16,
+                                        }}
+                                        title="Aktifkan notifikasi"
+                                    >
+                                        🔔
+                                    </button>
+                                )}
+                            <button
+                                onClick={handleCloseChat}
+                                style={{
+                                    background: "none",
+                                    border: "none",
+                                    fontSize: 22,
+                                    color: "#fff",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                &times;
+                            </button>
+                        </div>
                     </div>
                     <div
                         style={{
@@ -283,6 +389,20 @@ const SupportChat = () => {
                     </form>
                 </div>
             )}
+
+            <style jsx>{`
+                @keyframes pulse {
+                    0% {
+                        transform: scale(1);
+                    }
+                    50% {
+                        transform: scale(1.1);
+                    }
+                    100% {
+                        transform: scale(1);
+                    }
+                }
+            `}</style>
         </>
     )
 }

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Navbar, { Footer } from "../components/Navbar"
+import { useNotification } from "../components/NotificationToast"
 
 const statusOptions = [
     { value: "", label: "Semua Status" },
@@ -23,6 +24,7 @@ function getYearOptions(taxes) {
 
 export default function ListingDataPage() {
     const { data: session, status } = useSession()
+    const { addNotification } = useNotification()
     const router = useRouter()
     const [taxes, setTaxes] = useState([])
     const [loading, setLoading] = useState(false)
@@ -44,18 +46,45 @@ export default function ListingDataPage() {
 
     async function fetchTaxes() {
         setLoading(true)
-        const res = await fetch(`/api/tax?userId=${session.user.id}`)
-        const data = await res.json()
-        setTaxes(Array.isArray(data) ? data : [])
-        setLoading(false)
+        try {
+            const res = await fetch(`/api/tax?userId=${session.user.id}`)
+            const data = await res.json()
+            setTaxes(Array.isArray(data) ? data : [])
+
+            // Notifikasi sukses saat data berhasil dimuat
+            if (Array.isArray(data)) {
+                addNotification(
+                    `Berhasil memuat ${data.length} data pajak`,
+                    "success"
+                )
+            }
+        } catch (error) {
+            addNotification("Gagal memuat data pajak", "error")
+            console.error("Error fetching taxes:", error)
+        } finally {
+            setLoading(false)
+        }
     }
 
     async function handleDelete(id) {
         if (!confirm("Yakin ingin menghapus data ini?")) return
-        setLoading(true)
-        await fetch(`/api/tax?id=${id}`, { method: "DELETE" })
-        await fetchTaxes()
-        setLoading(false)
+
+        try {
+            setLoading(true)
+            const res = await fetch(`/api/tax?id=${id}`, { method: "DELETE" })
+
+            if (res.ok) {
+                addNotification("Data pajak berhasil dihapus!", "success")
+                await fetchTaxes()
+            } else {
+                addNotification("Gagal menghapus data pajak", "error")
+            }
+        } catch (error) {
+            addNotification("Terjadi kesalahan saat menghapus data", "error")
+            console.error("Error deleting tax:", error)
+        } finally {
+            setLoading(false)
+        }
     }
 
     // Filter & search
@@ -733,6 +762,10 @@ export default function ListingDataPage() {
                             data={modal.data}
                             onClose={() => {
                                 setModal({ type: null, data: null })
+                                addNotification(
+                                    "Data pajak berhasil diperbarui!",
+                                    "success"
+                                )
                                 fetchTaxes()
                             }}
                         />
@@ -777,23 +810,54 @@ function EditModal({ data, onClose }) {
     const [form, setForm] = useState({ ...data })
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
+
     async function handleSubmit(e) {
         e.preventDefault()
         setLoading(true)
         setError("")
-        const res = await fetch(`/api/tax?id=${data.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(form),
-        })
-        if (!res.ok) {
-            const d = await res.json()
-            setError(d.error || "Gagal update data")
+
+        // Validasi form
+        if (!form.name.trim()) {
+            setError("Nama wajib diisi")
             setLoading(false)
             return
         }
-        setLoading(false)
-        onClose()
+        if (!form.address.trim()) {
+            setError("Alamat wajib diisi")
+            setLoading(false)
+            return
+        }
+        if (!form.total || parseFloat(form.total) <= 0) {
+            setError("Total pajak harus lebih dari 0")
+            setLoading(false)
+            return
+        }
+        if (!form.year || parseInt(form.year) < 2000) {
+            setError("Tahun pajak tidak valid")
+            setLoading(false)
+            return
+        }
+
+        try {
+            const res = await fetch(`/api/tax?id=${data.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(form),
+            })
+
+            if (!res.ok) {
+                const d = await res.json()
+                setError(d.error || "Gagal update data")
+            } else {
+                // Notifikasi sukses akan ditampilkan di parent component
+                onClose()
+            }
+        } catch (error) {
+            setError("Terjadi kesalahan jaringan")
+            console.error("Error updating tax:", error)
+        } finally {
+            setLoading(false)
+        }
     }
     return (
         <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">

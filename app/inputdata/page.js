@@ -3,9 +3,11 @@ import { useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Navbar, { Footer } from "../components/Navbar"
+import { useNotification } from "../components/NotificationToast"
 
 export default function InputDataPage() {
     const { data: session, status } = useSession()
+    const { addNotification } = useNotification()
     const router = useRouter()
     const [form, setForm] = useState({
         name: "",
@@ -40,25 +42,56 @@ export default function InputDataPage() {
         e.preventDefault()
         setError("")
         setSuccess("")
-        const res = await fetch("/api/tax", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                ...form,
-                userId: session.user.id,
-            }),
-        })
-        const data = await res.json()
-        if (!res.ok) setError(data.error || "Gagal menambah data")
-        else {
-            setSuccess("Data pajak berhasil ditambah!")
-            setForm({
-                name: "",
-                address: "",
-                total: "",
-                year: "",
-                status: "belum_lunas",
+
+        // Validasi form
+        if (!form.name.trim()) {
+            addNotification("Nama wajib diisi", "error")
+            return
+        }
+        if (!form.address.trim()) {
+            addNotification("Alamat wajib diisi", "error")
+            return
+        }
+        if (!form.total || parseFloat(form.total) <= 0) {
+            addNotification("Total pajak harus lebih dari 0", "error")
+            return
+        }
+        if (!form.year || parseInt(form.year) < 2000) {
+            addNotification("Tahun pajak tidak valid", "error")
+            return
+        }
+
+        try {
+            const res = await fetch("/api/tax", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    ...form,
+                    userId: session.user.id,
+                }),
             })
+            const data = await res.json()
+
+            if (!res.ok) {
+                addNotification(
+                    data.error || "Gagal menambah data pajak",
+                    "error"
+                )
+                setError(data.error || "Gagal menambah data")
+            } else {
+                addNotification("Data pajak berhasil ditambahkan!", "success")
+                setSuccess("Data pajak berhasil ditambah!")
+                setForm({
+                    name: "",
+                    address: "",
+                    total: "",
+                    year: "",
+                    status: "belum_lunas",
+                })
+            }
+        } catch (error) {
+            addNotification("Terjadi kesalahan jaringan", "error")
+            setError("Gagal menambah data")
         }
     }
 

@@ -10,6 +10,7 @@ export default function LoginPage() {
     const [error, setError] = useState("")
     const [showContactAdmin, setShowContactAdmin] = useState(false)
     const [redirecting, setRedirecting] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
     const router = useRouter()
 
     useEffect(() => {
@@ -123,14 +124,67 @@ export default function LoginPage() {
                             <label className="block mb-1 text-sm font-medium text-gray-700">
                                 Password
                             </label>
-                            <input
-                                type="password"
-                                placeholder="Password"
-                                className="input text-black"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="Password"
+                                    className="input text-black pr-12"
+                                    value={password}
+                                    onChange={(e) =>
+                                        setPassword(e.target.value)
+                                    }
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 text-sm px-2 focus:outline-none"
+                                    onClick={() =>
+                                        setShowPassword((prev) => !prev)
+                                    }
+                                    tabIndex={-1}
+                                    aria-label={
+                                        showPassword
+                                            ? "Sembunyikan password"
+                                            : "Tampilkan password"
+                                    }
+                                >
+                                    {showPassword ? (
+                                        // Mata dicoret (hide)
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="20"
+                                            height="20"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke="currentColor"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth="2"
+                                                d="M3 3l18 18M10.7 10.7A2 2 0 0 0 12 14a2 2 0 0 0 1.3-3.3m-2.6 0A2 2 0 0 1 12 10a2 2 0 0 1 2 2c0 .37-.1.72-.3 1.02m-2.6-2.32C7.1 11.13 5.06 13.06 4 14c2.5 2.5 6.5 2.5 9 0 .41-.41.77-.86 1.08-1.32m2.12-2.12C18.94 13.06 16.9 15 15 16c-2.5 2.5-6.5 2.5-9 0C5.06 13.06 7.1 11.13 9 10c.41-.41.86-.77 1.32-1.08"
+                                            />
+                                        </svg>
+                                    ) : (
+                                        // Mata terbuka (show)
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="20"
+                                            height="20"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke="currentColor"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth="2"
+                                                d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Zm11-3a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"
+                                            />
+                                        </svg>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                         <button
                             type="submit"

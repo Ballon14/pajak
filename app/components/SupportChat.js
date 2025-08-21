@@ -11,12 +11,14 @@ const SupportChat = () => {
         resetUnreadCount,
         requestNotificationPermission,
         setChatOpen,
+        checkNewMessages,
     } = useChatNotification()
     const [open, setOpen] = useState(false)
     const [messages, setMessages] = useState([])
     const [input, setInput] = useState("")
     const [loading, setLoading] = useState(false)
     const [refreshing, setRefreshing] = useState(false)
+    const [connectionStatus, setConnectionStatus] = useState("connected")
     const messagesEndRef = useRef(null)
 
     // Request notification permission on mount
@@ -35,12 +37,35 @@ const SupportChat = () => {
     const fetchMessages = useCallback(async () => {
         if (!session?.user?.id) return
         setRefreshing(true)
+        setConnectionStatus("connecting")
         try {
-            const res = await fetch(`/api/chat?userId=${session.user.id}`)
-            const data = await res.json()
-            setMessages(Array.isArray(data) ? data : [])
+            // First get user's conversation
+            const conversationRes = await fetch(
+                `/api/chat?userId=${session.user.id}`
+            )
+            const conversationData = await conversationRes.json()
+
+            if (
+                Array.isArray(conversationData) &&
+                conversationData.length > 0
+            ) {
+                // User has conversation, get messages
+                const conversation = conversationData[0]
+                const messagesRes = await fetch(`/api/chat/${conversation.id}`)
+                const messagesData = await messagesRes.json()
+                setMessages(
+                    Array.isArray(messagesData.messages)
+                        ? messagesData.messages
+                        : []
+                )
+            } else {
+                // No conversation yet
+                setMessages([])
+            }
+            setConnectionStatus("connected")
         } catch (error) {
             console.error("Error fetching messages:", error)
+            setConnectionStatus("disconnected")
             addNotification("Gagal memuat pesan chat", "error")
         } finally {
             setRefreshing(false)
@@ -53,15 +78,23 @@ const SupportChat = () => {
             fetchMessages()
             // Reset unread count saat chat dibuka
             resetUnreadCount()
+            // Check for new messages immediately
+            checkNewMessages()
         }
-    }, [open, session?.user?.id, fetchMessages, resetUnreadCount])
+    }, [
+        open,
+        session?.user?.id,
+        fetchMessages,
+        resetUnreadCount,
+        checkNewMessages,
+    ])
 
-    // Auto refresh messages every 5 seconds when chat is open
+    // Auto refresh messages every 3 seconds when chat is open for better responsiveness
     useEffect(() => {
         if (open && session?.user?.id) {
             const interval = setInterval(() => {
                 fetchMessages()
-            }, 5000)
+            }, 3000)
             return () => clearInterval(interval)
         }
     }, [open, session?.user?.id, fetchMessages])
@@ -78,7 +111,7 @@ const SupportChat = () => {
         if (input.trim() === "" || !session?.user?.id) return
         setLoading(true)
         try {
-            await fetch("/api/chat", {
+            const response = await fetch("/api/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -89,10 +122,17 @@ const SupportChat = () => {
                     isAdmin: false,
                 }),
             })
-            setInput("")
-            await fetchMessages() // fetch ulang dari backend
-            addNotification("Pesan terkirim!", "success")
+
+            if (response.ok) {
+                setInput("")
+                // Fetch messages immediately after sending
+                await fetchMessages()
+                addNotification("Pesan terkirim!", "success")
+            } else {
+                addNotification("Gagal mengirim pesan!", "error")
+            }
         } catch (err) {
+            console.error("Error sending message:", err)
             addNotification("Gagal mengirim pesan!", "error")
         } finally {
             setLoading(false)
@@ -213,9 +253,26 @@ const SupportChat = () => {
                                     <h3 className="font-semibold">
                                         Support Chat
                                     </h3>
-                                    <p className="text-sm opacity-90">
-                                        Kami siap membantu Anda
-                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <div
+                                            className={`w-2 h-2 rounded-full ${
+                                                connectionStatus === "connected"
+                                                    ? "bg-green-400"
+                                                    : connectionStatus ===
+                                                      "connecting"
+                                                    ? "bg-yellow-400"
+                                                    : "bg-red-400"
+                                            }`}
+                                        ></div>
+                                        <p className="text-sm opacity-90">
+                                            {connectionStatus === "connected"
+                                                ? "Terhubung"
+                                                : connectionStatus ===
+                                                  "connecting"
+                                                ? "Menghubungkan..."
+                                                : "Terputus"}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                             <button
@@ -333,17 +390,6 @@ const SupportChat = () => {
                                                         {/* Read Status for User Messages */}
                                                         {!message.isAdmin && (
                                                             <div className="flex items-center gap-1 ml-2">
-                                                                <span
-                                                                    className={`text-xs ${
-                                                                        message.read
-                                                                            ? "text-blue-500"
-                                                                            : "text-gray-400"
-                                                                    }`}
-                                                                >
-                                                                    {message.read
-                                                                        ? "✓✓"
-                                                                        : "✓"}
-                                                                </span>
                                                                 <span
                                                                     className={`text-xs ${
                                                                         message.read

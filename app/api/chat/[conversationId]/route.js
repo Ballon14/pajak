@@ -152,7 +152,7 @@ export async function POST(req, { params }) {
             {
                 $set: {
                     lastMessage: new Date(),
-                    unreadCount: isAdmin ? 0 : 1, // Reset unread count if admin replies
+                    unreadCount: isAdmin ? 1 : 0, // Admin message increases unread count for user
                 },
             }
         )

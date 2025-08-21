@@ -10,10 +10,6 @@ export default function SupportChatWrapper() {
         return null
     }
 
-    // Hide chat for admin users
-    if (session?.user?.role === "admin") {
-        return null
-    }
-
+    // Show chat for both users and admins
     return <RealTimeChatSidebar />
 }

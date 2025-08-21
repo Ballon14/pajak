@@ -28,13 +28,13 @@ export default function AdminChatPage() {
             fetchConversations()
             fetchOnlineUsers()
             fetchChatUsers()
-            // Poll for new data every 10 seconds
+            // Poll for new data every 5 seconds for better responsiveness
             const interval = setInterval(() => {
                 fetchConversations()
                 if (selectedConversation) {
                     fetchMessages(selectedConversation.id)
                 }
-            }, 10000)
+            }, 5000)
             return () => clearInterval(interval)
         }
     }, [status, session, selectedConversation])
@@ -57,11 +57,11 @@ export default function AdminChatPage() {
     const fetchMessages = async (conversationId) => {
         try {
             const response = await fetch(
-                `/api/chat?isAdmin=true&conversationId=${conversationId}`
+                `/api/chat/${conversationId}?isAdmin=true`
             )
             if (response.ok) {
                 const data = await response.json()
-                setMessages(Array.isArray(data) ? data : [])
+                setMessages(Array.isArray(data.messages) ? data.messages : [])
             }
         } catch (error) {
             console.error("Error fetching messages:", error)

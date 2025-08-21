@@ -1,8 +1,8 @@
 "use client"
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
     const [password, setPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
     const [error, setError] = useState("")
@@ -143,5 +143,24 @@ export default function ResetPasswordPage() {
                 </form>
             </div>
         </div>
+    )
+}
+
+export default function ResetPasswordPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center p-4">
+                    <div className="max-w-md w-full bg-white rounded-2xl shadow-premium p-8 border border-slate-200">
+                        <div className="text-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                            <p className="mt-4 text-slate-600">Memuat...</p>
+                        </div>
+                    </div>
+                </div>
+            }
+        >
+            <ResetPasswordForm />
+        </Suspense>
     )
 }

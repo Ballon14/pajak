@@ -31,38 +31,40 @@ const SupportChat = () => {
         setChatOpen(open)
     }, [open, setChatOpen])
 
-    // Ambil pesan hanya untuk user ini
+    // Fetch messages for this user's conversation
     const fetchMessages = useCallback(async () => {
-        if (!session?.user?.email) return
+        if (!session?.user?.id) return
         setRefreshing(true)
         try {
-            const res = await fetch("/api/chat")
+            const res = await fetch(`/api/chat?userId=${session.user.id}`)
             const data = await res.json()
-
-            // Filter pesan hanya untuk user ini (berdasarkan email atau id)
-            const filtered = data.filter(
-                (msg) =>
-                    msg.email === session.user.email ||
-                    msg.userId === session.user.id
-            )
-
-            setMessages(filtered)
+            setMessages(Array.isArray(data) ? data : [])
         } catch (error) {
             console.error("Error fetching messages:", error)
             addNotification("Gagal memuat pesan chat", "error")
         } finally {
             setRefreshing(false)
         }
-    }, [session?.user?.email, addNotification])
+    }, [session?.user?.id, addNotification])
 
     // Fetch pesan saat pop-up dibuka
     useEffect(() => {
-        if (open && session?.user?.email) {
+        if (open && session?.user?.id) {
             fetchMessages()
             // Reset unread count saat chat dibuka
             resetUnreadCount()
         }
-    }, [open, session?.user?.email, fetchMessages, resetUnreadCount])
+    }, [open, session?.user?.id, fetchMessages, resetUnreadCount])
+
+    // Auto refresh messages every 5 seconds when chat is open
+    useEffect(() => {
+        if (open && session?.user?.id) {
+            const interval = setInterval(() => {
+                fetchMessages()
+            }, 5000)
+            return () => clearInterval(interval)
+        }
+    }, [open, session?.user?.id, fetchMessages])
 
     useEffect(() => {
         // Auto scroll ke bawah saat pesan bertambah
@@ -73,7 +75,7 @@ const SupportChat = () => {
 
     const handleSend = async (e) => {
         e.preventDefault()
-        if (input.trim() === "" || !session?.user?.email) return
+        if (input.trim() === "" || !session?.user?.id) return
         setLoading(true)
         try {
             await fetch("/api/chat", {
@@ -81,9 +83,10 @@ const SupportChat = () => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     message: input,
-                    from: "user",
+                    from: session.user.name,
                     email: session.user.email,
                     userId: session.user.id,
+                    isAdmin: false,
                 }),
             })
             setInput("")
@@ -98,311 +101,311 @@ const SupportChat = () => {
 
     const handleOpenChat = useCallback(() => {
         setOpen(true)
-        resetUnreadCount()
-    }, [resetUnreadCount])
+    }, [])
 
     const handleCloseChat = useCallback(() => {
         setOpen(false)
     }, [])
 
-    if (status === "loading") return null
-    if (!session?.user?.email) return null
+    const formatTime = (time) => {
+        const date = new Date(time)
+        const now = new Date()
+        const diffInHours = (now - date) / (1000 * 60 * 60)
+
+        if (diffInHours < 24) {
+            return date.toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+            })
+        } else {
+            return date.toLocaleDateString("id-ID", {
+                day: "2-digit",
+                month: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+            })
+        }
+    }
+
+    const formatDate = (time) => {
+        const date = new Date(time)
+        const today = new Date()
+        const yesterday = new Date(today)
+        yesterday.setDate(yesterday.getDate() - 1)
+
+        if (date.toDateString() === today.toDateString()) {
+            return "Hari ini"
+        } else if (date.toDateString() === yesterday.toDateString()) {
+            return "Kemarin"
+        } else {
+            return date.toLocaleDateString("id-ID", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+            })
+        }
+    }
+
+    const getReadStatusText = (message) => {
+        if (message.isAdmin) return null // Admin tidak perlu status read
+
+        if (message.read) {
+            return "Dibaca"
+        } else {
+            return "Terkirim"
+        }
+    }
+
+    if (status === "loading") {
+        return null
+    }
+
+    if (!session) {
+        return null
+    }
 
     return (
         <>
-            {/* Tombol chat dengan badge notifikasi */}
-            {!open && (
-                <div style={{ position: "relative" }}>
-                    <button
-                        onClick={handleOpenChat}
-                        style={{
-                            position: "fixed",
-                            bottom: 24,
-                            right: 24,
-                            zIndex: 1000,
-                            background: "#2563eb",
-                            color: "white",
-                            borderRadius: "50%",
-                            width: 56,
-                            height: 56,
-                            border: "none",
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                            fontSize: 28,
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            transition: "transform 0.2s ease",
-                        }}
-                        onMouseEnter={(e) => {
-                            e.target.style.transform = "scale(1.1)"
-                        }}
-                        onMouseLeave={(e) => {
-                            e.target.style.transform = "scale(1)"
-                        }}
-                        aria-label="Buka chat support"
-                    >
-                        <span role="img" aria-label="chat">
-                            💬
-                        </span>
-                    </button>
-
-                    {/* Badge notifikasi */}
-                    <ChatNotificationBadge
-                        unreadCount={unreadCount}
-                        onClick={handleOpenChat}
-                    />
-                </div>
-            )}
-
-            {/* Pop-up chat */}
-            {open && (
-                <div
-                    style={{
-                        position: "fixed",
-                        bottom: 24,
-                        right: 24,
-                        width: 340,
-                        maxHeight: 480,
-                        background: "white",
-                        borderRadius: 16,
-                        boxShadow: "0 4px 24px rgba(0,0,0,0.18)",
-                        zIndex: 1001,
-                        display: "flex",
-                        flexDirection: "column",
-                        overflow: "hidden",
-                    }}
+            {/* Chat Toggle Button */}
+            <div className="fixed bottom-4 right-4 z-50">
+                <button
+                    onClick={handleOpenChat}
+                    className="bg-blue-500 hover:bg-blue-600 text-white rounded-full p-4 shadow-lg transition-colors relative"
                 >
-                    <div
-                        style={{
-                            padding: "14px 18px",
-                            borderBottom: "1px solid #eee",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            background: "#2563eb",
-                        }}
+                    <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                     >
-                        <span
-                            style={{
-                                fontWeight: "bold",
-                                color: "#fff",
-                                fontSize: 17,
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                            }}
-                        >
-                            <span role="img" aria-label="chat">
-                                💬
-                            </span>{" "}
-                            Support Chat
-                            {unreadCount > 0 && (
-                                <span
-                                    style={{
-                                        background: "#ef4444",
-                                        color: "white",
-                                        borderRadius: "50%",
-                                        width: 20,
-                                        height: 20,
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        fontSize: 11,
-                                        fontWeight: "bold",
-                                        marginLeft: 8,
-                                    }}
-                                >
-                                    {unreadCount > 99 ? "99+" : unreadCount}
-                                </span>
-                            )}
-                        </span>
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                            }}
-                        >
-                            {/* Tombol notifikasi */}
-                            {"Notification" in window &&
-                                Notification.permission === "default" && (
-                                    <button
-                                        onClick={requestNotificationPermission}
-                                        style={{
-                                            background: "rgba(255,255,255,0.2)",
-                                            color: "white",
-                                            border: "none",
-                                            borderRadius: "50%",
-                                            width: 32,
-                                            height: 32,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            cursor: "pointer",
-                                            fontSize: 16,
-                                        }}
-                                        title="Aktifkan notifikasi"
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                        />
+                    </svg>
+                    <ChatNotificationBadge />
+                </button>
+            </div>
+
+            {/* Chat Modal */}
+            {open && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-end z-50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md h-96 flex flex-col">
+                        {/* Header */}
+                        <div className="bg-blue-500 text-white p-4 rounded-t-lg flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                                    <svg
+                                        className="w-4 h-4"
+                                        fill="currentColor"
+                                        viewBox="0 0 20 20"
                                     >
-                                        🔔
-                                    </button>
-                                )}
+                                        <path
+                                            fillRule="evenodd"
+                                            d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z"
+                                            clipRule="evenodd"
+                                        />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold">
+                                        Support Chat
+                                    </h3>
+                                    <p className="text-sm opacity-90">
+                                        Kami siap membantu Anda
+                                    </p>
+                                </div>
+                            </div>
                             <button
                                 onClick={handleCloseChat}
-                                style={{
-                                    background: "none",
-                                    border: "none",
-                                    fontSize: 22,
-                                    color: "#fff",
-                                    cursor: "pointer",
-                                }}
+                                className="text-white hover:text-gray-200 transition-colors"
                             >
-                                &times;
+                                <svg
+                                    className="w-6 h-6"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M6 18L18 6M6 6l12 12"
+                                    />
+                                </svg>
                             </button>
                         </div>
-                    </div>
-                    <div
-                        style={{
-                            flex: 1,
-                            overflowY: "auto",
-                            padding: 16,
-                            background: "#f7f8fa",
-                        }}
-                    >
-                        {refreshing ? (
-                            <div
-                                style={{
-                                    color: "#888",
-                                    textAlign: "center",
-                                    marginTop: 40,
-                                }}
-                            >
-                                Memuat pesan...
-                            </div>
-                        ) : messages.length === 0 ? (
-                            <div
-                                style={{
-                                    color: "#888",
-                                    textAlign: "center",
-                                    marginTop: 40,
-                                }}
-                            >
-                                Belum ada pesan
-                            </div>
-                        ) : (
-                            messages.map((msg, idx) => (
-                                <div
-                                    key={idx}
-                                    style={{
-                                        marginBottom: 10,
-                                        textAlign:
-                                            msg.from === "user"
-                                                ? "right"
-                                                : "left",
-                                    }}
-                                >
-                                    <span
-                                        style={{
-                                            display: "inline-block",
-                                            background:
-                                                msg.from === "user"
-                                                    ? "#2563eb"
-                                                    : "#e5e7eb",
-                                            color:
-                                                msg.from === "user"
-                                                    ? "#fff"
-                                                    : "#222",
-                                            borderRadius: 10,
-                                            padding: "8px 14px",
-                                            maxWidth: "80%",
-                                            fontSize: 15,
-                                            boxShadow:
-                                                msg.from === "user"
-                                                    ? "0 1px 4px #2563eb22"
-                                                    : "none",
-                                        }}
-                                    >
-                                        {msg.text || msg.message}
-                                    </span>
-                                    <div
-                                        style={{
-                                            fontSize: 11,
-                                            color: "#888",
-                                            marginTop: 2,
-                                        }}
-                                    >
-                                        {msg.time
-                                            ? new Date(
-                                                  msg.time
-                                              ).toLocaleTimeString()
-                                            : ""}
-                                    </div>
+
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                            {refreshing ? (
+                                <div className="text-center text-gray-500">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
+                                    <p className="mt-2">Memuat pesan...</p>
                                 </div>
-                            ))
-                        )}
-                        <div ref={messagesEndRef} />
+                            ) : messages.length === 0 ? (
+                                <div className="text-center text-gray-500 mt-8">
+                                    <div className="text-4xl mb-2">💬</div>
+                                    <p>Mulai percakapan dengan support kami</p>
+                                    <p className="text-sm mt-1">
+                                        Kami akan merespons secepatnya
+                                    </p>
+                                </div>
+                            ) : (
+                                messages.map((message, index) => {
+                                    const showDate =
+                                        index === 0 ||
+                                        formatDate(message.time) !==
+                                            formatDate(
+                                                messages[index - 1]?.time
+                                            )
+
+                                    return (
+                                        <div key={message.id}>
+                                            {/* Date Separator */}
+                                            {showDate && (
+                                                <div className="flex justify-center mb-4">
+                                                    <span className="bg-gray-100 text-gray-500 text-xs px-3 py-1 rounded-full">
+                                                        {formatDate(
+                                                            message.time
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            {/* Message */}
+                                            <div
+                                                className={`flex ${
+                                                    message.isAdmin
+                                                        ? "justify-start"
+                                                        : "justify-end"
+                                                }`}
+                                            >
+                                                <div
+                                                    className={`max-w-xs ${
+                                                        message.isAdmin
+                                                            ? "order-1"
+                                                            : "order-2"
+                                                    }`}
+                                                >
+                                                    {/* Sender Name */}
+                                                    {message.isAdmin && (
+                                                        <div className="text-xs text-gray-500 mb-1 ml-1">
+                                                            {message.from}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Message Bubble */}
+                                                    <div
+                                                        className={`px-3 py-2 rounded-lg ${
+                                                            message.isAdmin
+                                                                ? "bg-gray-200 text-gray-900"
+                                                                : "bg-blue-500 text-white"
+                                                        }`}
+                                                    >
+                                                        <p className="text-sm">
+                                                            {message.message}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Time and Status */}
+                                                    <div
+                                                        className={`flex items-center justify-between mt-1 ${
+                                                            message.isAdmin
+                                                                ? "justify-start ml-1"
+                                                                : "justify-end mr-1"
+                                                        }`}
+                                                    >
+                                                        <div
+                                                            className={`text-xs ${
+                                                                message.isAdmin
+                                                                    ? "text-gray-500"
+                                                                    : "text-blue-500"
+                                                            }`}
+                                                        >
+                                                            {formatTime(
+                                                                message.time
+                                                            )}
+                                                        </div>
+
+                                                        {/* Read Status for User Messages */}
+                                                        {!message.isAdmin && (
+                                                            <div className="flex items-center gap-1 ml-2">
+                                                                <span
+                                                                    className={`text-xs ${
+                                                                        message.read
+                                                                            ? "text-blue-500"
+                                                                            : "text-gray-400"
+                                                                    }`}
+                                                                >
+                                                                    {message.read
+                                                                        ? "✓✓"
+                                                                        : "✓"}
+                                                                </span>
+                                                                <span
+                                                                    className={`text-xs ${
+                                                                        message.read
+                                                                            ? "text-blue-500"
+                                                                            : "text-gray-400"
+                                                                    }`}
+                                                                >
+                                                                    {getReadStatusText(
+                                                                        message
+                                                                    )}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                })
+                            )}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* Input */}
+                        <div className="p-4 border-t border-gray-200">
+                            <form onSubmit={handleSend} className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    placeholder="Ketik pesan..."
+                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                    disabled={loading}
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={!input.trim() || loading}
+                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                                >
+                                    {loading ? (
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                    ) : (
+                                        <svg
+                                            className="w-4 h-4"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                                            />
+                                        </svg>
+                                    )}
+                                </button>
+                            </form>
+                        </div>
                     </div>
-                    <form
-                        onSubmit={handleSend}
-                        style={{
-                            display: "flex",
-                            borderTop: "1px solid #eee",
-                            padding: 10,
-                            background: "#fff",
-                        }}
-                    >
-                        <input
-                            type="text"
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            className="text-black"
-                            placeholder="Tulis pesan..."
-                            style={{
-                                flex: 1,
-                                border: "1px solid #ccc",
-                                outline: "none",
-                                fontSize: 15,
-                                padding: 10,
-                                borderRadius: 8,
-                                background: "#f7f8fa",
-                            }}
-                            disabled={loading}
-                        />
-                        <button
-                            type="submit"
-                            style={{
-                                background: loading ? "#a5b4fc" : "#2563eb",
-                                color: "white",
-                                border: "none",
-                                borderRadius: 8,
-                                padding: "0 18px",
-                                marginLeft: 8,
-                                cursor: loading ? "not-allowed" : "pointer",
-                                opacity: loading ? 0.7 : 1,
-                                fontWeight: 600,
-                                fontSize: 15,
-                            }}
-                            disabled={loading}
-                        >
-                            {loading ? "..." : "Kirim"}
-                        </button>
-                    </form>
                 </div>
             )}
-
-            <style jsx>{`
-                @keyframes pulse {
-                    0% {
-                        transform: scale(1);
-                    }
-                    50% {
-                        transform: scale(1.1);
-                    }
-                    100% {
-                        transform: scale(1);
-                    }
-                }
-            `}</style>
         </>
     )
 }

@@ -1,26 +1,19 @@
 "use client"
-import { usePathname } from "next/navigation"
-import SupportChat from "./SupportChat"
+import { useSession } from "next-auth/react"
+import RealTimeChatSidebar from "./RealTimeChatSidebar"
 
 export default function SupportChatWrapper() {
-    const pathname = usePathname()
+    const { data: session, status } = useSession()
 
-    // Sembunyikan chat di halaman login, register, dan semua halaman admin
-    const hideChatPaths = [
-        "/login",
-        "/register",
-        "/forgot-password",
-        "/reset-password",
-    ]
-
-    // Cek apakah path saat ini adalah halaman yang harus disembunyikan
-    const shouldHideChat =
-        hideChatPaths.includes(pathname) ||
-        pathname.startsWith("/dashboard/admin")
-
-    if (shouldHideChat) {
+    // Only show chat sidebar for authenticated users
+    if (status !== "authenticated" || !session) {
         return null
     }
 
-    return <SupportChat />
+    // Hide chat for admin users
+    if (session?.user?.role === "admin") {
+        return null
+    }
+
+    return <RealTimeChatSidebar />
 }

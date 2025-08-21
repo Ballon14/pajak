@@ -1,1235 +1,731 @@
 "use client"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
-import AdminSidebar from "@/app/components/AdminSidebar"
-import LoadingSpinner from "@/app/components/LoadingSpinner"
-import { useNotification } from "@/app/components/NotificationToast"
-import {
-    useAdminChatNotification,
-    AdminUserList,
-} from "@/app/components/AdminChatNotification"
 
 export default function AdminChatPage() {
     const { data: session, status } = useSession()
-    const { addNotification } = useNotification()
-    const { unreadCount, unreadUsers, clearUnreadForUser } =
-        useAdminChatNotification()
+    const [conversations, setConversations] = useState([])
+    const [selectedConversation, setSelectedConversation] = useState(null)
     const [messages, setMessages] = useState([])
-    const [input, setInput] = useState("")
-    const [loading, setLoading] = useState(false)
-    const [refreshing, setRefreshing] = useState(false)
-    const [deleting, setDeleting] = useState(false)
-    const [selectedUser, setSelectedUser] = useState(null)
-    const [sidebarOpen, setSidebarOpen] = useState(true)
-    const [isMobile, setIsMobile] = useState(false)
-    const [showNewChatModal, setShowNewChatModal] = useState(false)
-    const [newChatMessage, setNewChatMessage] = useState("")
-    const [sendingNewChat, setSendingNewChat] = useState(false)
-    const [databaseUsers, setDatabaseUsers] = useState([])
-    const chatContainerRef = useRef(null)
+    const [newMessage, setNewMessage] = useState("")
+    const [loading, setLoading] = useState(true)
+    const [messageLoading, setMessageLoading] = useState(false)
+    const [onlineUsers, setOnlineUsers] = useState([])
+    const [chatUsers, setChatUsers] = useState([])
+    const [broadcastModal, setBroadcastModal] = useState({
+        open: false,
+        type: "all",
+    })
+    const [broadcastMessage, setBroadcastMessage] = useState("")
+    const [startChatModal, setStartChatModal] = useState({
+        open: false,
+        selectedUser: null,
+        message: "",
+    })
 
     useEffect(() => {
-        function handleResize() {
-            setIsMobile(window.innerWidth < 768)
-            if (window.innerWidth < 768) setSidebarOpen(false)
-            else setSidebarOpen(true)
+        if (status === "authenticated" && session?.user?.role === "admin") {
+            fetchConversations()
+            fetchOnlineUsers()
+            fetchChatUsers()
+            // Poll for new data every 10 seconds
+            const interval = setInterval(() => {
+                fetchConversations()
+                if (selectedConversation) {
+                    fetchMessages(selectedConversation.id)
+                }
+            }, 10000)
+            return () => clearInterval(interval)
         }
-        handleResize()
-        window.addEventListener("resize", handleResize)
-        return () => window.removeEventListener("resize", handleResize)
-    }, [])
+    }, [status, session, selectedConversation])
 
-    const fetchMessages = async () => {
-        setRefreshing(true)
+    const fetchConversations = async () => {
         try {
-            const res = await fetch("/api/chat")
-            const data = await res.json()
-            setMessages(data)
-        } catch (error) {
-            console.error("Error fetching messages:", error)
-            addNotification("Gagal memuat pesan chat", "error")
-        } finally {
-            setRefreshing(false)
-        }
-    }
-
-    const fetchDatabaseUsers = async () => {
-        try {
-            const res = await fetch("/api/admin/users")
-            const data = await res.json()
-            if (data.success) {
-                setDatabaseUsers(data.users)
+            const response = await fetch("/api/chat?isAdmin=true")
+            if (response.ok) {
+                const data = await response.json()
+                setConversations(Array.isArray(data) ? data : [])
             }
         } catch (error) {
-            console.error("Error fetching database users:", error)
-        }
-    }
-
-    useEffect(() => {
-        fetchMessages()
-        fetchDatabaseUsers()
-        // Polling setiap 5 detik
-        const interval = setInterval(() => {
-            fetchMessages()
-        }, 5000)
-        return () => clearInterval(interval)
-    }, [])
-
-    useEffect(() => {
-        if (chatContainerRef.current) {
-            // Auto scroll ke bawah dengan smooth animation
-            chatContainerRef.current.scrollTo({
-                top: chatContainerRef.current.scrollHeight,
-                behavior: "smooth",
-            })
-        }
-    }, [messages, selectedUser, refreshing])
-
-    // Dapatkan daftar user unik dari pesan
-    const users = Array.from(
-        messages
-            .reduce((acc, msg) => {
-                if (msg.email) {
-                    acc.set(msg.email, {
-                        email: msg.email,
-                        userId: msg.userId,
-                        lastMessage: msg.message,
-                        lastMessageTime: msg.time,
-                        from: msg.from,
-                    })
-                }
-                return acc
-            }, new Map())
-            .values()
-    )
-
-    // Filter pesan untuk user yang dipilih
-    const userMessages = selectedUser
-        ? messages.filter(
-              (msg) =>
-                  msg.email === selectedUser.email ||
-                  msg.userId === selectedUser.userId
-          )
-        : []
-
-    // Clear unread status ketika user dipilih
-    const handleUserSelect = (user) => {
-        setSelectedUser(user)
-        clearUnreadForUser(user.email)
-
-        // Auto scroll ke pesan terakhir setelah user dipilih
-        setTimeout(() => {
-            if (chatContainerRef.current) {
-                chatContainerRef.current.scrollTop =
-                    chatContainerRef.current.scrollHeight
-            }
-        }, 100)
-    }
-
-    const handleSend = async (e) => {
-        e.preventDefault()
-        if (input.trim() === "" || !selectedUser) return
-        setLoading(true)
-        try {
-            await fetch("/api/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    message: input,
-                    from: "admin",
-                    email: selectedUser.email,
-                    userId: selectedUser.userId,
-                }),
-            })
-            setInput("")
-            await fetchMessages()
-            addNotification("Pesan terkirim!", "success")
-
-            // Auto scroll ke pesan terakhir setelah kirim pesan
-            setTimeout(() => {
-                if (chatContainerRef.current) {
-                    chatContainerRef.current.scrollTop =
-                        chatContainerRef.current.scrollHeight
-                }
-            }, 100)
-        } catch (error) {
-            addNotification("Gagal mengirim pesan!", "error")
+            console.error("Error fetching conversations:", error)
+            setConversations([])
         } finally {
             setLoading(false)
         }
     }
 
-    const handleDeleteChat = async () => {
-        if (!selectedUser) {
-            console.log("No selected user")
-            addNotification("Tidak ada user yang dipilih", "error")
-            return
-        }
-
-        if (!selectedUser.email) {
-            console.log("No email for selected user")
-            addNotification("Data user tidak lengkap", "error")
-            return
-        }
-
-        console.log("Attempting to delete chat for:", selectedUser)
-
-        if (!confirm(`Hapus semua chat dengan ${selectedUser.email}?`)) {
-            console.log("User cancelled deletion")
-            return
-        }
-
-        setDeleting(true)
+    const fetchMessages = async (conversationId) => {
         try {
-            const payload = {
-                userId: selectedUser.userId || null,
-                email: selectedUser.email,
+            const response = await fetch(
+                `/api/chat?isAdmin=true&conversationId=${conversationId}`
+            )
+            if (response.ok) {
+                const data = await response.json()
+                setMessages(Array.isArray(data) ? data : [])
             }
-            console.log("Sending delete request with payload:", payload)
+        } catch (error) {
+            console.error("Error fetching messages:", error)
+            setMessages([])
+        }
+    }
 
+    const fetchOnlineUsers = async () => {
+        try {
+            const response = await fetch("/api/admin/online-users")
+            if (response.ok) {
+                const data = await response.json()
+                setOnlineUsers(Array.isArray(data) ? data : [])
+            }
+        } catch (error) {
+            console.error("Error fetching online users:", error)
+            setOnlineUsers([])
+        }
+    }
+
+    const fetchChatUsers = async () => {
+        try {
+            const response = await fetch("/api/admin/users/chat-users")
+            if (response.ok) {
+                const data = await response.json()
+                setChatUsers(Array.isArray(data) ? data : [])
+            }
+        } catch (error) {
+            console.error("Error fetching chat users:", error)
+            setChatUsers([])
+        }
+    }
+
+    const selectConversation = async (conversation) => {
+        setSelectedConversation(conversation)
+        setMessages([])
+        await fetchMessages(conversation.id)
+    }
+
+    const sendMessage = async () => {
+        if (!newMessage.trim() || !selectedConversation) return
+
+        setMessageLoading(true)
+        try {
+            const response = await fetch(
+                `/api/chat/${selectedConversation.id}`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        message: newMessage.trim(),
+                        from: session.user.name,
+                        isAdmin: true,
+                    }),
+                }
+            )
+
+            if (response.ok) {
+                setNewMessage("")
+                // Refresh messages
+                await fetchMessages(selectedConversation.id)
+                // Refresh conversations to update last message
+                await fetchConversations()
+            }
+        } catch (error) {
+            console.error("Error sending message:", error)
+        } finally {
+            setMessageLoading(false)
+        }
+    }
+
+    const startPrivateChat = async () => {
+        if (!startChatModal.selectedUser || !startChatModal.message.trim())
+            return
+
+        setMessageLoading(true)
+        try {
+            const response = await fetch("/api/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: startChatModal.message.trim(),
+                    from: session.user.name,
+                    isAdmin: true,
+                    targetUserId: startChatModal.selectedUser.id,
+                }),
+            })
+
+            if (response.ok) {
+                setStartChatModal({
+                    open: false,
+                    selectedUser: null,
+                    message: "",
+                })
+                // Refresh conversations to show new chat
+                await fetchConversations()
+                // Refresh chat users
+                await fetchChatUsers()
+                alert("Chat pribadi berhasil dimulai!")
+            }
+        } catch (error) {
+            console.error("Error starting private chat:", error)
+            alert("Gagal memulai chat pribadi")
+        } finally {
+            setMessageLoading(false)
+        }
+    }
+
+    const sendBroadcastMessage = async () => {
+        if (!broadcastMessage.trim()) return
+
+        try {
+            const response = await fetch("/api/admin/broadcast", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: broadcastMessage,
+                    type: broadcastModal.type,
+                }),
+            })
+
+            if (response.ok) {
+                setBroadcastMessage("")
+                setBroadcastModal({ open: false, type: "all" })
+                alert("Broadcast message sent successfully!")
+            }
+        } catch (error) {
+            console.error("Error sending broadcast:", error)
+        }
+    }
+
+    const deleteConversation = async (conversationId) => {
+        if (!confirm("Apakah Anda yakin ingin menghapus percakapan ini?"))
+            return
+
+        try {
             const response = await fetch("/api/chat", {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ conversationId }),
             })
 
-            console.log("Delete response status:", response.status)
-            const result = await response.json()
-            console.log("Delete response result:", result)
-
-            if (!response.ok) {
-                throw new Error(result.error || "Gagal menghapus chat")
-            }
-
-            if (result.success) {
-                setSelectedUser(null)
-                await fetchMessages()
-                addNotification(
-                    `Chat berhasil dihapus! (${result.deletedCount} pesan)`,
-                    "success"
+            if (response.ok) {
+                setConversations((prev) =>
+                    prev.filter((conv) => conv.id !== conversationId)
                 )
-            } else {
-                throw new Error(result.error || "Gagal menghapus chat")
+                if (selectedConversation?.id === conversationId) {
+                    setSelectedConversation(null)
+                    setMessages([])
+                }
             }
         } catch (error) {
-            console.error("Error deleting chat:", error)
-            addNotification(error.message || "Gagal menghapus chat!", "error")
-        } finally {
-            setDeleting(false)
+            console.error("Error deleting conversation:", error)
         }
     }
 
-    const handleStartNewChat = async (user) => {
-        if (user) {
-            setSelectedUser(user)
+    const formatTime = (time) => {
+        const date = new Date(time)
+        const now = new Date()
+        const diffInHours = (now - date) / (1000 * 60 * 60)
+
+        if (diffInHours < 24) {
+            return date.toLocaleTimeString("id-ID", {
+                hour: "2-digit",
+                minute: "2-digit",
+            })
+        } else {
+            return date.toLocaleDateString("id-ID", {
+                day: "2-digit",
+                month: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+            })
         }
-        setShowNewChatModal(true)
-        setNewChatMessage("")
     }
 
-    const handleSendNewChat = async (e) => {
-        e.preventDefault()
-        if (!newChatMessage.trim() || !selectedUser) return
+    const formatDate = (time) => {
+        const date = new Date(time)
+        const today = new Date()
+        const yesterday = new Date(today)
+        yesterday.setDate(yesterday.getDate() - 1)
 
-        setSendingNewChat(true)
-        try {
-            if (selectedUser.email === "ALL_USERS") {
-                await fetch("/api/chat", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        message: newChatMessage,
-                        from: "admin",
-                        broadcast: true,
-                    }),
-                })
-            } else {
-                await fetch("/api/chat", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        message: newChatMessage,
-                        from: "admin",
-                        email: selectedUser.email,
-                        userId: selectedUser.id || selectedUser.userId,
-                    }),
-                })
-            }
-            setNewChatMessage("")
-            setShowNewChatModal(false)
-            await fetchMessages()
-            addNotification("Pesan terkirim!", "success")
-        } catch (error) {
-            addNotification("Gagal mengirim pesan!", "error")
-        } finally {
-            setSendingNewChat(false)
+        if (date.toDateString() === today.toDateString()) {
+            return "Hari ini"
+        } else if (date.toDateString() === yesterday.toDateString()) {
+            return "Kemarin"
+        } else {
+            return date.toLocaleDateString("id-ID", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+            })
         }
+    }
+
+    const getReadStatusText = (message) => {
+        if (!message.isAdmin) return null // Hanya untuk pesan admin
+
+        if (message.read) {
+            return "Dibaca"
+        } else {
+            return "Terkirim"
+        }
+    }
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+            </div>
+        )
     }
 
     return (
-        <>
-            {status === "loading" ? (
-                <LoadingSpinner text="Memuat data chat..." />
-            ) : !session || session.user.role !== "admin" ? (
-                <div
-                    style={{ color: "red", textAlign: "center", marginTop: 40 }}
-                >
-                    Akses ditolak. Halaman ini hanya untuk admin.
+        <div className="flex h-screen bg-gray-100">
+            {/* Sidebar - Conversation List */}
+            <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
+                {/* Header */}
+                <div className="p-4 border-b border-gray-200 bg-blue-600 text-white">
+                    <h1 className="text-xl font-semibold">Chat Support</h1>
+                    <p className="text-sm opacity-90">
+                        {conversations.length} percakapan aktif
+                    </p>
                 </div>
-            ) : (
-                <div style={{ display: "flex" }}>
-                    <AdminSidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-                    <main
-                        style={{
-                            marginLeft: isMobile ? 0 : sidebarOpen ? 230 : 60,
-                            width: "100%",
-                            minHeight: "100vh",
-                            background: "#f7f8fa",
-                            transition: "margin-left 0.3s ease",
-                            paddingBottom: 0,
-                        }}
-                    >
-                        <div
-                            style={{
-                                maxWidth: isMobile ? "100%" : 900,
-                                margin: isMobile ? "10px 8px" : "40px auto",
-                                background: "#fff",
-                                borderRadius: isMobile ? 12 : 12,
-                                boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-                                minHeight: isMobile
-                                    ? "calc(100vh - 20px)"
-                                    : 500,
-                                display: "flex",
-                                flexDirection: isMobile ? "column" : "row",
-                                height: isMobile
-                                    ? "calc(100vh - 20px)"
-                                    : "calc(100vh - 80px)",
-                                overflow: "hidden",
-                            }}
-                        >
-                            {/* Sidebar user chat */}
-                            <div
-                                style={{
-                                    width: isMobile ? "100%" : 220,
-                                    borderRight: isMobile
-                                        ? "none"
-                                        : "1px solid #eee",
-                                    borderBottom: isMobile
-                                        ? "1px solid #eee"
-                                        : "none",
-                                    padding: 0,
-                                    background: "#f7f8fa",
-                                    borderRadius: isMobile
-                                        ? "12px 12px 0 0"
-                                        : "12px 0 0 12px",
-                                    minWidth: isMobile ? "auto" : 180,
-                                    maxHeight: isMobile ? "35vh" : "none",
-                                    height: isMobile ? "35vh" : "auto",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        fontWeight: 600,
-                                        color: "#2563eb",
-                                        fontSize: isMobile ? 16 : 17,
-                                        padding: isMobile
-                                            ? "16px 16px 12px 16px"
-                                            : "18px 0 10px 24px",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "space-between",
-                                        borderBottom: isMobile
-                                            ? "1px solid #e5e7eb"
-                                            : "none",
-                                        background: isMobile
-                                            ? "#fff"
-                                            : "transparent",
-                                        borderRadius: isMobile
-                                            ? "12px 12px 0 0"
-                                            : "0",
-                                    }}
-                                >
-                                    <span>Daftar User</span>
-                                    <div
-                                        style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 8,
-                                        }}
-                                    >
-                                        <button
-                                            onClick={() => {
-                                                setSelectedUser(null)
-                                                setShowNewChatModal(true)
-                                            }}
-                                            style={{
-                                                background: "#10b981",
-                                                color: "white",
-                                                border: "none",
-                                                borderRadius: "50%",
-                                                width: isMobile ? 24 : 28,
-                                                height: isMobile ? 24 : 28,
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                cursor: "pointer",
-                                                fontSize: isMobile ? 12 : 14,
-                                                transition: "all 0.2s ease",
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.target.style.background =
-                                                    "#059669"
-                                                e.target.style.transform =
-                                                    "scale(1.05)"
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.target.style.background =
-                                                    "#10b981"
-                                                e.target.style.transform =
-                                                    "scale(1)"
-                                            }}
-                                            title="Tambah chat baru"
-                                        >
-                                            +
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                fetchMessages()
-                                                fetchDatabaseUsers()
-                                            }}
-                                            disabled={refreshing}
-                                            style={{
-                                                background: refreshing
-                                                    ? "#9ca3af"
-                                                    : "#2563eb",
-                                                color: "white",
-                                                border: "none",
-                                                borderRadius: "50%",
-                                                width: isMobile ? 24 : 28,
-                                                height: isMobile ? 24 : 28,
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                cursor: refreshing
-                                                    ? "not-allowed"
-                                                    : "pointer",
-                                                fontSize: isMobile ? 12 : 14,
-                                                transition: "all 0.2s ease",
-                                            }}
-                                            title="Refresh chat"
-                                        >
-                                            {refreshing ? "..." : "↻"}
-                                        </button>
-                                        {unreadCount > 0 && (
-                                            <span
-                                                style={{
-                                                    background: "#ef4444",
-                                                    color: "white",
-                                                    borderRadius: "50%",
-                                                    width: isMobile ? 18 : 20,
-                                                    height: isMobile ? 18 : 20,
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                    fontSize: isMobile
-                                                        ? 10
-                                                        : 11,
-                                                    fontWeight: "bold",
-                                                }}
-                                            >
-                                                {unreadCount}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                                <div
-                                    style={{
-                                        maxHeight: isMobile ? "140px" : 470,
-                                        overflowY: "auto",
-                                    }}
-                                >
-                                    {users.length === 0 ? (
-                                        <div
-                                            style={{
-                                                color: "#888",
-                                                textAlign: "center",
-                                                marginTop: isMobile ? 20 : 40,
-                                                padding: isMobile
-                                                    ? "20px 16px"
-                                                    : "40px 24px",
-                                                fontSize: isMobile ? 14 : 16,
-                                            }}
-                                        >
-                                            Belum ada user
-                                        </div>
-                                    ) : (
-                                        <AdminUserList
-                                            users={users}
-                                            unreadUsers={unreadUsers}
-                                            onUserSelect={handleUserSelect}
-                                            selectedUser={selectedUser}
-                                            onStartNewChat={handleStartNewChat}
-                                        />
-                                    )}
-                                </div>
-                            </div>
 
-                            {/* Chat area */}
+                {/* Action Buttons */}
+                <div className="p-4 border-b border-gray-200 space-y-2">
+                    <button
+                        onClick={() =>
+                            setStartChatModal({
+                                open: true,
+                                selectedUser: null,
+                                message: "",
+                            })
+                        }
+                        className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                        💬 Mulai Chat Pribadi
+                    </button>
+                    <button
+                        onClick={() =>
+                            setBroadcastModal({ open: true, type: "all" })
+                        }
+                        className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                        📢 Kirim Broadcast
+                    </button>
+                </div>
+
+                {/* Conversation List */}
+                <div className="flex-1 overflow-y-auto">
+                    {conversations.length === 0 ? (
+                        <div className="p-4 text-center text-gray-500">
+                            Belum ada percakapan
+                        </div>
+                    ) : (
+                        conversations.map((conversation) => (
                             <div
-                                style={{
-                                    flex: 1,
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    padding: 0,
-                                    minWidth: isMobile ? "auto" : 200,
-                                    height: isMobile ? "65vh" : "100%",
-                                    minHeight: isMobile ? "400px" : "auto",
-                                    background: "#fff",
-                                    borderRadius: isMobile
-                                        ? "0 0 12px 12px"
-                                        : "0 12px 12px 0",
-                                }}
+                                key={conversation.id}
+                                onClick={() => selectConversation(conversation)}
+                                className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
+                                    selectedConversation?.id === conversation.id
+                                        ? "bg-blue-50 border-l-4 border-l-blue-500"
+                                        : ""
+                                }`}
                             >
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "space-between",
-                                        padding: isMobile
-                                            ? "16px 16px 12px 16px"
-                                            : "18px 24px",
-                                        borderBottom: "1px solid #eee",
-                                        fontWeight: 600,
-                                        color: "#2563eb",
-                                        fontSize: isMobile ? 16 : 17,
-                                        background: "#fafbfc",
-                                        borderRadius: isMobile
-                                            ? "0 0 12px 12px"
-                                            : "0 12px 0 0",
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: isMobile ? 8 : 12,
-                                        }}
-                                    >
-                                        {selectedUser && (
-                                            <button
-                                                onClick={() =>
-                                                    setSelectedUser(null)
-                                                }
-                                                style={{
-                                                    background: "#f3f4f6",
-                                                    color: "#6b7280",
-                                                    border: "none",
-                                                    borderRadius: "50%",
-                                                    width: isMobile ? 36 : 36,
-                                                    height: isMobile ? 36 : 36,
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                    cursor: "pointer",
-                                                    fontSize: isMobile
-                                                        ? 18
-                                                        : 18,
-                                                    transition: "all 0.2s",
-                                                    boxShadow:
-                                                        "0 1px 3px rgba(0,0,0,0.1)",
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    e.target.style.background =
-                                                        "#e5e7eb"
-                                                    e.target.style.transform =
-                                                        "scale(1.05)"
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    e.target.style.background =
-                                                        "#f3f4f6"
-                                                    e.target.style.transform =
-                                                        "scale(1)"
-                                                }}
-                                                title="Kembali ke daftar user"
-                                            >
-                                                ←
-                                            </button>
-                                        )}
-                                        <span
-                                            style={{
-                                                fontSize: isMobile ? 14 : 17,
-                                                maxWidth: isMobile
-                                                    ? "200px"
-                                                    : "none",
-                                                overflow: "hidden",
-                                                textOverflow: "ellipsis",
-                                                whiteSpace: "nowrap",
-                                            }}
-                                        >
-                                            {selectedUser
-                                                ? `Chat dengan: ${selectedUser.email}`
-                                                : "Pilih user untuk melihat chat"}
-                                        </span>
-                                    </div>
-                                    <div style={{ display: "flex", gap: 8 }}>
-                                        {selectedUser && (
-                                            <button
-                                                onClick={handleDeleteChat}
-                                                disabled={deleting}
-                                                style={{
-                                                    background: deleting
-                                                        ? "#9ca3af"
-                                                        : "#ef4444",
-                                                    color: "#fff",
-                                                    border: "none",
-                                                    borderRadius: 6,
-                                                    padding: isMobile
-                                                        ? "8px 14px"
-                                                        : "8px 18px",
-                                                    fontWeight: 600,
-                                                    fontSize: isMobile
-                                                        ? 12
-                                                        : 14,
-                                                    cursor: deleting
-                                                        ? "not-allowed"
-                                                        : "pointer",
-                                                    transition: "all 0.2s ease",
-                                                    opacity: deleting ? 0.7 : 1,
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    if (!deleting) {
-                                                        e.target.style.background =
-                                                            "#dc2626"
-                                                        e.target.style.transform =
-                                                            "scale(1.02)"
+                                <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
+                                                {conversation.user?.name?.charAt(
+                                                    0
+                                                ) || "U"}
+                                            </div>
+                                            <div className="flex-1">
+                                                <h3 className="font-semibold text-gray-900">
+                                                    {conversation.user?.name ||
+                                                        "Unknown User"}
+                                                </h3>
+                                                <p className="text-sm text-gray-500">
+                                                    {conversation.user?.email ||
+                                                        conversation.email}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {conversation.lastMessage && (
+                                            <div className="mt-2">
+                                                <p className="text-sm text-gray-600 truncate">
+                                                    {
+                                                        conversation.lastMessage
+                                                            .message
                                                     }
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    if (!deleting) {
-                                                        e.target.style.background =
-                                                            "#ef4444"
-                                                        e.target.style.transform =
-                                                            "scale(1)"
-                                                    }
-                                                }}
-                                            >
-                                                {deleting
-                                                    ? isMobile
-                                                        ? "..."
-                                                        : "Menghapus..."
-                                                    : isMobile
-                                                    ? "Hapus"
-                                                    : "Hapus Chat"}
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                                <div
-                                    ref={chatContainerRef}
-                                    style={{
-                                        flex: 1,
-                                        overflowY: "auto",
-                                        padding: isMobile ? "16px 12px" : 24,
-                                        background: "#fafbfc",
-                                        minHeight: 0,
-                                        maxHeight: isMobile
-                                            ? "calc(65vh - 140px)"
-                                            : "none",
-                                    }}
-                                >
-                                    {refreshing ? (
-                                        <div
-                                            style={{
-                                                color: "#888",
-                                                textAlign: "center",
-                                                padding: isMobile
-                                                    ? "20px"
-                                                    : "40px",
-                                                fontSize: isMobile ? 14 : 16,
-                                            }}
-                                        >
-                                            Memuat pesan...
-                                        </div>
-                                    ) : !selectedUser ? (
-                                        <div
-                                            style={{
-                                                color: "#888",
-                                                textAlign: "center",
-                                                marginTop: isMobile ? 20 : 40,
-                                                padding: isMobile
-                                                    ? "20px"
-                                                    : "40px",
-                                                fontSize: isMobile ? 14 : 16,
-                                            }}
-                                        >
-                                            Pilih user untuk melihat chat
-                                        </div>
-                                    ) : userMessages.length === 0 ? (
-                                        <div
-                                            style={{
-                                                color: "#888",
-                                                textAlign: "center",
-                                                marginTop: isMobile ? 20 : 40,
-                                                padding: isMobile
-                                                    ? "20px"
-                                                    : "40px",
-                                                fontSize: isMobile ? 14 : 16,
-                                            }}
-                                        >
-                                            Belum ada pesan
-                                        </div>
-                                    ) : (
-                                        userMessages.map((msg, idx) => (
-                                            <div
-                                                key={idx}
-                                                style={{
-                                                    marginBottom: isMobile
-                                                        ? 12
-                                                        : 14,
-                                                    textAlign:
-                                                        msg.from === "admin"
-                                                            ? "right"
-                                                            : "left",
-                                                }}
-                                            >
-                                                <span
-                                                    style={{
-                                                        display: "inline-block",
-                                                        background:
-                                                            msg.from === "admin"
-                                                                ? "#2563eb"
-                                                                : "#fff",
-                                                        color:
-                                                            msg.from === "admin"
-                                                                ? "white"
-                                                                : "#222",
-                                                        borderRadius: isMobile
-                                                            ? 12
-                                                            : 8,
-                                                        padding: isMobile
-                                                            ? "10px 14px"
-                                                            : "8px 14px",
-                                                        maxWidth: isMobile
-                                                            ? "90%"
-                                                            : "80%",
-                                                        fontSize: isMobile
-                                                            ? 15
-                                                            : 15,
-                                                        boxShadow:
-                                                            msg.from === "admin"
-                                                                ? "0 2px 4px rgba(37, 99, 235, 0.2)"
-                                                                : "0 1px 3px rgba(0,0,0,0.1)",
-                                                        border:
-                                                            msg.from === "admin"
-                                                                ? "none"
-                                                                : "1px solid #e5e7eb",
-                                                    }}
-                                                >
-                                                    <b>
-                                                        {msg.from === "admin"
-                                                            ? "Admin"
-                                                            : "User"}
-                                                        :
-                                                    </b>{" "}
-                                                    {msg.message}
-                                                </span>
-                                                <div
-                                                    style={{
-                                                        fontSize: isMobile
-                                                            ? 11
-                                                            : 11,
-                                                        color: "#888",
-                                                        marginTop: isMobile
-                                                            ? 4
-                                                            : 4,
-                                                        textAlign:
-                                                            msg.from === "admin"
-                                                                ? "right"
-                                                                : "left",
-                                                    }}
-                                                >
-                                                    {msg.time
-                                                        ? new Date(
-                                                              msg.time
-                                                          ).toLocaleString(
-                                                              "id-ID",
-                                                              {
-                                                                  day: "2-digit",
-                                                                  month: "2-digit",
-                                                                  year: "numeric",
-                                                                  hour: "2-digit",
-                                                                  minute: "2-digit",
-                                                              }
-                                                          )
-                                                        : ""}
+                                                </p>
+                                                <div className="flex items-center justify-between mt-1">
+                                                    <span className="text-xs text-gray-400">
+                                                        {formatTime(
+                                                            conversation
+                                                                .lastMessage
+                                                                .time
+                                                        )}
+                                                    </span>
+                                                    {conversation.unreadCount >
+                                                        0 && (
+                                                        <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1">
+                                                            {
+                                                                conversation.unreadCount
+                                                            }
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
-                                        ))
-                                    )}
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            deleteConversation(conversation.id)
+                                        }}
+                                        className="text-red-500 hover:text-red-700 p-1"
+                                    >
+                                        🗑️
+                                    </button>
                                 </div>
-                                {/* Form balasan */}
-                                {selectedUser && (
-                                    <form
-                                        onSubmit={handleSend}
-                                        style={{
-                                            display: "flex",
-                                            gap: isMobile ? 8 : 8,
-                                            padding: isMobile
-                                                ? "16px 12px"
-                                                : 18,
-                                            borderTop: "1px solid #eee",
-                                            background: "#fff",
-                                            borderRadius: isMobile
-                                                ? "0 0 12px 12px"
-                                                : "0 0 12px 0",
-                                        }}
-                                    >
-                                        <input
-                                            type="text"
-                                            value={input}
-                                            onChange={(e) =>
-                                                setInput(e.target.value)
-                                            }
-                                            placeholder="Tulis balasan..."
-                                            style={{
-                                                flex: 1,
-                                                padding: isMobile
-                                                    ? "12px 16px"
-                                                    : 10,
-                                                borderRadius: isMobile ? 20 : 6,
-                                                border: "1px solid #e5e7eb",
-                                                fontSize: isMobile ? 15 : 15,
-                                                color: "#222",
-                                                background: "#f9fafb",
-                                                transition: "all 0.2s ease",
-                                            }}
-                                            disabled={loading}
-                                            className="chat-input-black-placeholder"
-                                        />
-                                        <button
-                                            type="submit"
-                                            style={{
-                                                background: "#2563eb",
-                                                color: "white",
-                                                border: "none",
-                                                borderRadius: isMobile ? 20 : 6,
-                                                padding: isMobile
-                                                    ? "12px 20px"
-                                                    : "0 18px",
-                                                cursor: loading
-                                                    ? "not-allowed"
-                                                    : "pointer",
-                                                opacity: loading ? 0.7 : 1,
-                                                fontSize: isMobile ? 14 : 15,
-                                                fontWeight: 600,
-                                                transition: "all 0.2s ease",
-                                                minWidth: isMobile
-                                                    ? "auto"
-                                                    : "auto",
-                                            }}
-                                            disabled={loading}
-                                        >
-                                            {loading
-                                                ? "..."
-                                                : isMobile
-                                                ? "Kirim"
-                                                : "Kirim"}
-                                        </button>
-                                    </form>
-                                )}
                             </div>
-                        </div>
-                    </main>
+                        ))
+                    )}
                 </div>
-            )}
-            <style>{`
-                .chat-input-black-placeholder::placeholder { 
-                    color: #222 !important; 
-                    opacity: 1; 
-                }
-                
-                .chat-input-black-placeholder:focus {
-                    outline: none !important;
-                    border-color: #2563eb !important;
-                    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
-                    background: #fff !important;
-                }
-                
-                .new-chat-textarea:focus {
-                    outline: none !important;
-                    border-color: #10b981 !important;
-                    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
-                }
-                
-                @media (max-width: 768px) {
-                    main { 
-                        margin-left: 0 !important; 
-                        padding: 0 !important;
-                    }
-                    .sidebar { 
-                        width: 0 !important; 
-                    }
-                }
-                
-                @media (max-width: 480px) {
-                    main {
-                        margin: 5px 4px !important;
-                    }
-                }
-                
-                @media (max-width: 360px) {
-                    main {
-                        margin: 2px !important;
-                    }
-                }
-                
-                /* Custom scrollbar for chat area */
-                div[ref="chatContainerRef"]::-webkit-scrollbar {
-                    width: 6px;
-                }
-                
-                div[ref="chatContainerRef"]::-webkit-scrollbar-track {
-                    background: #f1f1f1;
-                    border-radius: 3px;
-                }
-                
-                div[ref="chatContainerRef"]::-webkit-scrollbar-thumb {
-                    background: #c1c1c1;
-                    border-radius: 3px;
-                }
-                
-                div[ref="chatContainerRef"]::-webkit-scrollbar-thumb:hover {
-                    background: #a8a8a8;
-                }
+            </div>
 
-                select option[value=""] {
-                    color: #000 !important;
-                    font-weight: 500;
-                }
-            `}</style>
-
-            {/* Modal untuk pesan baru */}
-            {showNewChatModal && (
-                <div
-                    style={{
-                        position: "fixed",
-                        top: 0,
-                        left: 0,
-                        width: "100vw",
-                        height: "100vh",
-                        background: "rgba(0,0,0,0.5)",
-                        zIndex: 1000,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: isMobile ? "20px" : "40px",
-                    }}
-                    onClick={() => setShowNewChatModal(false)}
-                >
-                    <div
-                        style={{
-                            background: "#fff",
-                            borderRadius: 12,
-                            padding: isMobile ? "20px" : "32px",
-                            width: "100%",
-                            maxWidth: 400,
-                            boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div
-                            style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                marginBottom: 20,
-                            }}
-                        >
-                            <h3
-                                style={{
-                                    color: "#2563eb",
-                                    fontWeight: 700,
-                                    fontSize: isMobile ? 18 : 20,
-                                    margin: 0,
-                                }}
-                            >
-                                {selectedUser
-                                    ? "Kirim Pesan Pertama"
-                                    : "Mulai Chat Baru"}
-                            </h3>
-                            <button
-                                onClick={() => setShowNewChatModal(false)}
-                                style={{
-                                    background: "none",
-                                    border: "none",
-                                    fontSize: 24,
-                                    color: "#6b7280",
-                                    cursor: "pointer",
-                                    padding: 0,
-                                    width: 32,
-                                    height: 32,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                }}
-                            >
-                                ×
-                            </button>
+            {/* Main Chat Area */}
+            <div className="flex-1 flex flex-col">
+                {selectedConversation ? (
+                    <>
+                        {/* Chat Header */}
+                        <div className="p-4 border-b border-gray-200 bg-white">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold">
+                                    {selectedConversation.user?.name?.charAt(
+                                        0
+                                    ) || "U"}
+                                </div>
+                                <div>
+                                    <h2 className="font-semibold text-gray-900">
+                                        {selectedConversation.user?.name ||
+                                            "Unknown User"}
+                                    </h2>
+                                    <p className="text-sm text-gray-500">
+                                        {selectedConversation.user?.email ||
+                                            selectedConversation.email}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
-                        <div
-                            style={{
-                                marginBottom: 16,
-                                padding: 12,
-                                background: "#f3f4f6",
-                                borderRadius: 8,
-                                fontSize: 14,
-                                color: "#374151",
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                            }}
-                        >
-                            <div>
-                                <strong>Kepada:</strong>{" "}
-                                {selectedUser
-                                    ? selectedUser.email
-                                    : "Pilih user"}
-                                {selectedUser && (
-                                    <span
-                                        style={{
-                                            marginLeft: 8,
-                                            fontSize: 12,
-                                            color:
-                                                selectedUser.isActive !== false
-                                                    ? "#10b981"
-                                                    : "#ef4444",
-                                            fontWeight: 600,
-                                        }}
-                                    >
-                                        (
-                                        {selectedUser.isActive !== false
-                                            ? "Aktif"
-                                            : "Tidak Aktif"}
-                                        )
-                                    </span>
-                                )}
-                            </div>
-                            {selectedUser && (
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedUser(null)}
-                                    style={{
-                                        background: "#6b7280",
-                                        color: "white",
-                                        border: "none",
-                                        borderRadius: 4,
-                                        padding: "4px 8px",
-                                        fontSize: 12,
-                                        cursor: "pointer",
-                                        transition: "all 0.2s ease",
-                                    }}
-                                    title="Ubah user"
-                                >
-                                    Ubah
-                                </button>
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                            {messages.length === 0 ? (
+                                <div className="text-center text-gray-500 mt-8">
+                                    Mulai percakapan dengan user ini
+                                </div>
+                            ) : (
+                                messages.map((message, index) => {
+                                    const showDate =
+                                        index === 0 ||
+                                        formatDate(message.time) !==
+                                            formatDate(
+                                                messages[index - 1]?.time
+                                            )
+
+                                    return (
+                                        <div key={message.id}>
+                                            {/* Date Separator */}
+                                            {showDate && (
+                                                <div className="flex justify-center mb-4">
+                                                    <span className="bg-gray-100 text-gray-500 text-xs px-3 py-1 rounded-full">
+                                                        {formatDate(
+                                                            message.time
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            {/* Message */}
+                                            <div
+                                                className={`flex ${
+                                                    message.isAdmin
+                                                        ? "justify-end"
+                                                        : "justify-start"
+                                                }`}
+                                            >
+                                                <div
+                                                    className={`max-w-xs lg:max-w-md ${
+                                                        message.isAdmin
+                                                            ? "order-2"
+                                                            : "order-1"
+                                                    }`}
+                                                >
+                                                    {/* Sender Name */}
+                                                    {!message.isAdmin && (
+                                                        <div className="text-xs text-gray-500 mb-1 mr-1 text-right">
+                                                            {message.from}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Message Bubble */}
+                                                    <div
+                                                        className={`px-4 py-2 rounded-lg ${
+                                                            message.isAdmin
+                                                                ? "bg-blue-500 text-white"
+                                                                : "bg-gray-200 text-gray-900"
+                                                        }`}
+                                                    >
+                                                        <p className="text-sm">
+                                                            {message.message}
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Time and Status */}
+                                                    <div
+                                                        className={`flex items-center justify-between mt-1 ${
+                                                            message.isAdmin
+                                                                ? "justify-end mr-1"
+                                                                : "justify-start ml-1"
+                                                        }`}
+                                                    >
+                                                        <div
+                                                            className={`text-xs ${
+                                                                message.isAdmin
+                                                                    ? "text-blue-500"
+                                                                    : "text-gray-500"
+                                                            }`}
+                                                        >
+                                                            {formatTime(
+                                                                message.time
+                                                            )}
+                                                        </div>
+
+                                                        {/* Read Status for Admin Messages */}
+                                                        {message.isAdmin && (
+                                                            <div className="flex items-center gap-1 ml-2">
+                                                                <span
+                                                                    className={`text-xs ${
+                                                                        message.read
+                                                                            ? "text-blue-500"
+                                                                            : "text-gray-400"
+                                                                    }`}
+                                                                >
+                                                                    {message.read
+                                                                        ? "✓✓"
+                                                                        : "✓"}
+                                                                </span>
+                                                                <span
+                                                                    className={`text-xs ${
+                                                                        message.read
+                                                                            ? "text-blue-500"
+                                                                            : "text-gray-400"
+                                                                    }`}
+                                                                >
+                                                                    {getReadStatusText(
+                                                                        message
+                                                                    )}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                })
                             )}
                         </div>
 
-                        {!selectedUser && (
-                            <div style={{ marginBottom: 16 }}>
-                                <label
-                                    style={{
-                                        display: "block",
-                                        marginBottom: 8,
-                                        fontWeight: 600,
-                                        color: "#374151",
-                                        fontSize: 14,
-                                    }}
-                                >
-                                    Pilih User:
-                                </label>
-                                <select
-                                    value={
-                                        selectedUser ? selectedUser.email : ""
+                        {/* Message Input */}
+                        <div className="p-4 border-t border-gray-200 bg-white">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={newMessage}
+                                    onChange={(e) =>
+                                        setNewMessage(e.target.value)
                                     }
-                                    onChange={(e) => {
-                                        if (e.target.value === "ALL_USERS") {
-                                            setSelectedUser({
-                                                email: "ALL_USERS",
-                                                isActive: true,
-                                            })
-                                        } else {
-                                            const selectedUserData =
-                                                databaseUsers.find(
-                                                    (u) =>
-                                                        u.email ===
-                                                        e.target.value
-                                                )
-                                            setSelectedUser(selectedUserData)
-                                        }
-                                    }}
-                                    style={{
-                                        width: "100%",
-                                        padding: 10,
-                                        borderRadius: 6,
-                                        border: "1px solid #d1d5db",
-                                        fontSize: 14,
-                                        background: "#fff",
-                                        color: !selectedUser ? "#000" : "#000",
-                                    }}
-                                >
-                                    <option
-                                        value=""
-                                        style={{
-                                            color: "#000",
-                                            fontWeight: 500,
-                                        }}
-                                    >
-                                        Pilih user untuk dikirimi pesan...
-                                    </option>
-                                    <option
-                                        value="ALL_USERS"
-                                        style={{ color: "#000" }}
-                                    >
-                                        Semua User
-                                    </option>
-                                    {databaseUsers.length === 0 ? (
-                                        <option
-                                            value=""
-                                            disabled
-                                            style={{ color: "#666" }}
-                                        >
-                                            Memuat daftar user...
-                                        </option>
-                                    ) : databaseUsers.filter(
-                                          (user) => user.isActive !== false
-                                      ).length === 0 ? (
-                                        <option
-                                            value=""
-                                            disabled
-                                            style={{ color: "#666" }}
-                                        >
-                                            Tidak ada user aktif
-                                        </option>
-                                    ) : (
-                                        databaseUsers
-                                            .filter(
-                                                (user) =>
-                                                    user.isActive !== false
-                                            )
-                                            .map((user) => (
-                                                <option
-                                                    key={user.email}
-                                                    value={user.email}
-                                                    style={{ color: "#000" }}
-                                                >
-                                                    {user.email}
-                                                </option>
-                                            ))
-                                    )}
-                                </select>
-                            </div>
-                        )}
-
-                        <form onSubmit={handleSendNewChat}>
-                            <textarea
-                                value={newChatMessage}
-                                onChange={(e) =>
-                                    setNewChatMessage(e.target.value)
-                                }
-                                placeholder="Tulis pesan pertama Anda..."
-                                className="new-chat-textarea text-black"
-                                style={{
-                                    width: "100%",
-                                    minHeight: 100,
-                                    padding: 12,
-                                    borderRadius: 8,
-                                    border: "1px solid #d1d5db",
-                                    fontSize: 14,
-                                    fontFamily: "inherit",
-                                    resize: "vertical",
-                                    marginBottom: 20,
-                                }}
-                                disabled={sendingNewChat}
-                            />
-
-                            <div
-                                style={{
-                                    display: "flex",
-                                    gap: 12,
-                                    justifyContent: "flex-end",
-                                }}
-                            >
+                                    onKeyPress={(e) =>
+                                        e.key === "Enter" && sendMessage()
+                                    }
+                                    placeholder="Ketik pesan..."
+                                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    disabled={messageLoading}
+                                />
                                 <button
-                                    type="button"
-                                    onClick={() => setShowNewChatModal(false)}
-                                    style={{
-                                        background: "#6b7280",
-                                        color: "#fff",
-                                        border: "none",
-                                        borderRadius: 6,
-                                        padding: "10px 16px",
-                                        fontWeight: 600,
-                                        fontSize: 14,
-                                        cursor: "pointer",
-                                        transition: "all 0.2s ease",
-                                    }}
-                                    disabled={sendingNewChat}
-                                >
-                                    Batal
-                                </button>
-                                <button
-                                    type="submit"
+                                    onClick={sendMessage}
                                     disabled={
-                                        !newChatMessage.trim() ||
-                                        sendingNewChat ||
-                                        !selectedUser ||
-                                        selectedUser.isActive === false
+                                        !newMessage.trim() || messageLoading
                                     }
-                                    style={{
-                                        background:
-                                            sendingNewChat ||
-                                            !selectedUser ||
-                                            selectedUser.isActive === false
-                                                ? "#9ca3af"
-                                                : "#10b981",
-                                        color: "#fff",
-                                        border: "none",
-                                        borderRadius: 6,
-                                        padding: "10px 20px",
-                                        fontWeight: 600,
-                                        fontSize: 14,
-                                        cursor:
-                                            sendingNewChat ||
-                                            !selectedUser ||
-                                            selectedUser.isActive === false
-                                                ? "not-allowed"
-                                                : "pointer",
-                                        transition: "all 0.2s ease",
-                                        opacity:
-                                            sendingNewChat ||
-                                            !selectedUser ||
-                                            selectedUser.isActive === false
-                                                ? 0.7
-                                                : 1,
-                                    }}
+                                    className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
-                                    {sendingNewChat
-                                        ? "Mengirim..."
-                                        : !selectedUser
-                                        ? "Pilih User Dulu"
-                                        : selectedUser.isActive === false
-                                        ? "User Tidak Aktif"
-                                        : "Kirim Pesan"}
+                                    {messageLoading ? "Mengirim..." : "Kirim"}
                                 </button>
                             </div>
-                        </form>
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex-1 flex items-center justify-center">
+                        <div className="text-center text-gray-500">
+                            <div className="text-6xl mb-4">💬</div>
+                            <h2 className="text-xl font-semibold mb-2">
+                                Pilih Percakapan
+                            </h2>
+                            <p>
+                                Pilih percakapan dari daftar di sebelah kiri
+                                untuk mulai chatting
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Start Private Chat Modal */}
+            {startChatModal.open && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-96 max-h-[80vh] overflow-y-auto">
+                        <h3 className="text-lg font-semibold mb-4">
+                            Mulai Chat Pribadi
+                        </h3>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-2">
+                                Pilih User:
+                            </label>
+                            <select
+                                value={startChatModal.selectedUser?.id || ""}
+                                onChange={(e) => {
+                                    const user = chatUsers.find(
+                                        (u) => u.id === e.target.value
+                                    )
+                                    setStartChatModal({
+                                        ...startChatModal,
+                                        selectedUser: user,
+                                    })
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="">Pilih user...</option>
+                                {chatUsers.map((user) => (
+                                    <option key={user.id} value={user.id}>
+                                        {user.name} ({user.email}){" "}
+                                        {user.hasConversation
+                                            ? " - Sudah ada chat"
+                                            : ""}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-2">
+                                Pesan Awal:
+                            </label>
+                            <textarea
+                                value={startChatModal.message}
+                                onChange={(e) =>
+                                    setStartChatModal({
+                                        ...startChatModal,
+                                        message: e.target.value,
+                                    })
+                                }
+                                rows={4}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Tulis pesan awal untuk user..."
+                            />
+                        </div>
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() =>
+                                    setStartChatModal({
+                                        open: false,
+                                        selectedUser: null,
+                                        message: "",
+                                    })
+                                }
+                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                onClick={startPrivateChat}
+                                disabled={
+                                    !startChatModal.selectedUser ||
+                                    !startChatModal.message.trim() ||
+                                    messageLoading
+                                }
+                                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                            >
+                                {messageLoading ? "Memulai..." : "Mulai Chat"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
-        </>
+
+            {/* Broadcast Modal */}
+            {broadcastModal.open && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-96">
+                        <h3 className="text-lg font-semibold mb-4">
+                            Kirim Broadcast Message
+                        </h3>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-2">
+                                Tipe Broadcast:
+                            </label>
+                            <select
+                                value={broadcastModal.type}
+                                onChange={(e) =>
+                                    setBroadcastModal({
+                                        ...broadcastModal,
+                                        type: e.target.value,
+                                    })
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="all">Semua User</option>
+                                <option value="active">User Aktif</option>
+                                <option value="inactive">User Nonaktif</option>
+                            </select>
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-2">
+                                Pesan:
+                            </label>
+                            <textarea
+                                value={broadcastMessage}
+                                onChange={(e) =>
+                                    setBroadcastMessage(e.target.value)
+                                }
+                                rows={4}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Tulis pesan broadcast..."
+                            />
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() =>
+                                    setBroadcastModal({
+                                        open: false,
+                                        type: "all",
+                                    })
+                                }
+                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                onClick={sendBroadcastMessage}
+                                disabled={!broadcastMessage.trim()}
+                                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                            >
+                                Kirim
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
     )
 }

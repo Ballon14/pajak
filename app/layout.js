@@ -1,8 +1,8 @@
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import SessionWrapper from "./SessionWrapper"
-import SupportChatWrapper from "./components/SupportChatWrapper"
 import { NotificationProvider } from "./components/NotificationToast"
+import ConditionalLayout from "./components/ConditionalLayout"
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -15,21 +15,19 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata = {
-    title: "Pajak App",
-    description: "Pajak App",
+    title: "PajakApp - Tax Management System",
+    description: "Professional Tax Management & Analytics Platform",
 }
 
 export default function RootLayout({ children }) {
     return (
-        <html lang="en">
+        <html lang="en" className="scroll-smooth">
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-                style={{ background: "#f3f4f6" }}
             >
                 <NotificationProvider>
                     <SessionWrapper>
-                        {children}
-                        <SupportChatWrapper />
+                        <ConditionalLayout>{children}</ConditionalLayout>
                     </SessionWrapper>
                 </NotificationProvider>
             </body>

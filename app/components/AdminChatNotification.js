@@ -29,14 +29,8 @@ export function useAdminChatNotification() {
                         newUnreadUsers.add(msg.email)
                         newUnreadCount++
 
-                        // Show notification jika ada pesan baru
-                        if (lastId > 0) {
-                            // Skip notification untuk pesan pertama
-                            addNotification(
-                                `💬 Pesan baru dari ${msg.email}`,
-                                "info"
-                            )
-                        }
+                        // Admin tidak perlu notifikasi popup chat karena ada halaman chat khusus
+                        // Notification chat popup dinonaktifkan untuk admin
                     }
 
                     // Update last message ID
@@ -55,7 +49,7 @@ export function useAdminChatNotification() {
         } catch (error) {
             console.error("Error checking new messages:", error)
         }
-    }, [session?.user?.role, lastMessageIds, addNotification])
+    }, [session?.user?.role, lastMessageIds])
 
     // Polling untuk cek pesan baru setiap 5 detik
     useEffect(() => {

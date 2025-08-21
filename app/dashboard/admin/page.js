@@ -1,7 +1,6 @@
 "use client"
 import { useEffect, useState, useMemo } from "react"
 import { useSession } from "next-auth/react"
-import AdminSidebar from "@/app/components/AdminSidebar"
 import { useNotification } from "@/app/components/NotificationToast"
 
 export default function AdminDashboardPage() {
@@ -13,1322 +12,501 @@ export default function AdminDashboardPage() {
     const [userPage, setUserPage] = useState(1)
     const [taxPage, setTaxPage] = useState(1)
     const pageSize = 10
+
     const pagedUsers = Array.isArray(users)
         ? users.slice((userPage - 1) * pageSize, userPage * pageSize)
         : []
-    const pagedTaxes = taxes.slice((taxPage - 1) * pageSize, taxPage * pageSize)
+    const pagedTaxes = Array.isArray(taxes)
+        ? taxes.slice((taxPage - 1) * pageSize, taxPage * pageSize)
+        : []
     const userTotalPages = Array.isArray(users)
         ? Math.ceil(users.length / pageSize) || 1
         : 1
-    const taxTotalPages = Math.ceil(taxes.length / pageSize) || 1
-    const [sidebarOpen, setSidebarOpen] = useState(true)
-    const [isMobile, setIsMobile] = useState(false)
+    const taxTotalPages = Array.isArray(taxes)
+        ? Math.ceil(taxes.length / pageSize) || 1
+        : 1
 
-    // Hitung total nominal pajak dan statistik status (pindahkan ke atas sebelum return)
-    const pajakStats = useMemo(() => {
-        let totalNominal = 0
-        let count = { lunas: 0, "belum lunas": 0, proses: 0 }
-        taxes.forEach((tax) => {
-            // Cek semua kemungkinan field nominal
-            let nominal = 0
-            if (typeof tax.jumlah === "number") nominal = tax.jumlah
-            else if (tax.jumlah) nominal = parseFloat(tax.jumlah) || 0
-            else if (typeof tax.total === "number") nominal = tax.total
-            else if (tax.total) nominal = parseFloat(tax.total) || 0
-            else if (typeof tax.nominal === "number") nominal = tax.nominal
-            else if (tax.nominal) nominal = parseFloat(tax.nominal) || 0
-            if (nominal > 0) totalNominal += nominal
-            else if (tax.jumlah || tax.total || tax.nominal) {
-                // Untuk debugging, log jika ada value tapi tidak bisa di-parse
-                console.warn("Data pajak tidak bisa diparse:", tax)
-            }
-            const status = (tax.status || "").toLowerCase()
-            if (status === "lunas") count.lunas++
-            else if (status === "belum lunas") count["belum lunas"]++
-            else if (status === "proses") count.proses++
-        })
-        const total = taxes.length
-        return {
-            totalNominal,
-            count,
-            percent: {
-                lunas: total ? Math.round((count.lunas / total) * 100) : 0,
-                "belum lunas": total
-                    ? Math.round((count["belum lunas"] / total) * 100)
-                    : 0,
-                proses: total ? Math.round((count.proses / total) * 100) : 0,
-            },
-            total,
+    // Hitung total nominal pajak dan statistik status
+    const totalNominal = Array.isArray(taxes)
+        ? taxes.reduce((sum, t) => sum + (parseFloat(t.jumlah) || 0), 0)
+        : 0
+
+    const statusCounts = useMemo(() => {
+        const counts = { aktif: 0, nonaktif: 0 }
+        if (Array.isArray(users)) {
+            users.forEach((user) => {
+                if (user.status === "aktif") counts.aktif++
+                else counts.nonaktif++
+            })
         }
-    }, [taxes])
+        return counts
+    }, [users])
 
     useEffect(() => {
-        async function fetchData() {
-            setLoading(true)
-            try {
-                const usersRes = await fetch("/api/admin/users")
-                const usersData = await usersRes.json()
-                // Perbaiki: jika usersData adalah objek, ambil usersData.users
-                const usersArr = Array.isArray(usersData)
-                    ? usersData
-                    : Array.isArray(usersData.users)
-                    ? usersData.users
-                    : []
-                setUsers(usersArr)
+        if (status === "authenticated" && session?.user?.role === "admin") {
+            fetchUsers()
+            fetchTaxes()
+        }
+    }, [status, session])
 
-                const taxesRes = await fetch("/api/admin/tax")
-                const taxesData = await taxesRes.json()
-                setTaxes(taxesData)
-
-                // Notifikasi sukses saat data berhasil dimuat
-                addNotification(
-                    `Berhasil memuat ${usersArr.length} user dan ${taxesData.length} data pajak`,
-                    "success"
-                )
-            } catch (error) {
-                // Notifikasi error jika gagal memuat data
-                addNotification("Gagal memuat data dashboard", "error")
-                console.error("Error fetching data:", error)
-            } finally {
-                setLoading(false)
+    const fetchUsers = async () => {
+        try {
+            const response = await fetch("/api/admin/users")
+            if (response.ok) {
+                const data = await response.json()
+                setUsers(Array.isArray(data) ? data : [])
+            } else {
+                addNotification("Gagal memuat data users", "error")
+                setUsers([])
             }
+        } catch (error) {
+            console.error("Error fetching users:", error)
+            addNotification("Error memuat data users", "error")
+            setUsers([])
         }
-        fetchData()
-    }, [addNotification])
-
-    useEffect(() => {
-        function handleResize() {
-            setIsMobile(window.innerWidth < 768)
-            if (window.innerWidth < 768) setSidebarOpen(false)
-            else setSidebarOpen(true)
-        }
-        handleResize()
-        window.addEventListener("resize", handleResize)
-        return () => window.removeEventListener("resize", handleResize)
-    }, [])
-
-    // Fungsi untuk test notifikasi
-    const testNotifications = () => {
-        addNotification("Test notifikasi sukses!", "success")
-        setTimeout(
-            () => addNotification("Test notifikasi warning!", "warning"),
-            1000
-        )
-        setTimeout(
-            () => addNotification("Test notifikasi error!", "error"),
-            2000
-        )
-        setTimeout(() => addNotification("Test notifikasi info!", "info"), 3000)
     }
 
-    if (status === "loading") return <div>Loading...</div>
-    if (!session || session.user.role !== "admin") {
+    const fetchTaxes = async () => {
+        try {
+            const response = await fetch("/api/admin/taxes")
+            if (response.ok) {
+                const data = await response.json()
+                setTaxes(Array.isArray(data) ? data : [])
+            } else {
+                addNotification("Gagal memuat data pajak", "error")
+                setTaxes([])
+            }
+        } catch (error) {
+            console.error("Error fetching taxes:", error)
+            addNotification("Error memuat data pajak", "error")
+            setTaxes([])
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const updateUserStatus = async (userId, newStatus) => {
+        try {
+            const response = await fetch(`/api/admin/users/${userId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: newStatus }),
+            })
+
+            if (response.ok) {
+                setUsers((prev) =>
+                    prev.map((user) =>
+                        user.id === userId
+                            ? { ...user, status: newStatus }
+                            : user
+                    )
+                )
+                addNotification(
+                    `Status user berhasil diubah menjadi ${newStatus}`,
+                    "success"
+                )
+            } else {
+                addNotification("Gagal mengubah status user", "error")
+            }
+        } catch (error) {
+            console.error("Error updating user status:", error)
+            addNotification("Error mengubah status user", "error")
+        }
+    }
+
+    const deleteTax = async (taxId) => {
+        if (!confirm("Apakah Anda yakin ingin menghapus data pajak ini?"))
+            return
+
+        try {
+            const response = await fetch(`/api/admin/taxes?id=${taxId}`, {
+                method: "DELETE",
+            })
+
+            if (response.ok) {
+                setTaxes((prev) => prev.filter((tax) => tax.id !== taxId))
+                addNotification("Data pajak berhasil dihapus", "success")
+            } else {
+                addNotification("Gagal menghapus data pajak", "error")
+            }
+        } catch (error) {
+            console.error("Error deleting tax:", error)
+            addNotification("Error menghapus data pajak", "error")
+        }
+    }
+
+    if (status === "loading") {
         return (
-            <div style={{ color: "red", textAlign: "center", marginTop: 40 }}>
-                Akses ditolak. Halaman ini hanya untuk admin.
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
         )
     }
 
-    // Statistik
-    const totalUser = users.length
-    const totalPajak = taxes.length
-    const totalNominal = taxes.reduce(
-        (sum, t) => sum + (parseFloat(t.jumlah) || 0),
-        0
-    )
+    if (status !== "authenticated" || session?.user?.role !== "admin") {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center p-4">
+                <div className="text-center">
+                    <h1 className="text-2xl font-bold text-red-600 mb-2">
+                        Access Denied
+                    </h1>
+                    <p className="text-red-500">
+                        You don't have permission to access this page.
+                    </p>
+                </div>
+            </div>
+        )
+    }
 
     return (
-        <div style={{ display: "flex" }}>
-            <AdminSidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-            <main
-                style={{
-                    marginLeft: isMobile ? 0 : sidebarOpen ? 230 : 60,
-                    width: "100%",
-                    minHeight: "100vh",
-                    background: "#f7f8fa",
-                    transition: "margin-left 1s",
-                    paddingBottom: 32,
-                }}
-            >
-                <div
-                    style={{ maxWidth: 1200, margin: "40px auto", padding: 0 }}
-                >
-                    {/* Header */}
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 18,
-                            padding: "32px 32px 12px 32px",
-                            flexWrap: "wrap",
-                        }}
-                    >
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 18,
-                            }}
-                        >
-                            <div
-                                style={{
-                                    fontSize: 38,
-                                    color: "#2563eb",
-                                    background: "#e0e7ff",
-                                    borderRadius: 16,
-                                    width: 60,
-                                    height: 60,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    minWidth: 60,
-                                }}
-                            >
-                                <span role="img" aria-label="admin">
-                                    🛡️
-                                </span>
-                            </div>
-                            <div style={{ minWidth: 200 }}>
-                                <h1
-                                    style={{
-                                        margin: 0,
-                                        color: "#222",
-                                        fontWeight: 800,
-                                        fontSize: 28,
-                                    }}
-                                >
-                                    Dashboard Admin
-                                </h1>
-                                <div
-                                    style={{
-                                        color: "#555",
-                                        fontSize: 16,
-                                        marginTop: 4,
-                                    }}
-                                >
-                                    Kelola data user & pajak secara terpusat dan
-                                    efisien.
-                                </div>
-                            </div>
-                        </div>
+        <div className="p-8">
+            <div className="max-w-7xl mx-auto">
+                {/* Header */}
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-slate-900 mb-2">
+                        Admin Dashboard
+                    </h1>
+                    <p className="text-slate-600">
+                        Kelola pengguna dan data pajak sistem
+                    </p>
+                </div>
 
-                        {/* Tombol Test Notifikasi */}
-                        <button
-                            onClick={testNotifications}
-                            style={{
-                                background: "#2563eb",
-                                color: "white",
-                                border: "none",
-                                borderRadius: "8px",
-                                padding: "10px 16px",
-                                fontSize: "14px",
-                                fontWeight: "600",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                                transition: "all 0.2s ease",
-                            }}
-                            onMouseEnter={(e) => {
-                                e.target.style.background = "#1d4ed8"
-                            }}
-                            onMouseLeave={(e) => {
-                                e.target.style.background = "#2563eb"
-                            }}
-                        >
-                            <span>🔔</span>
-                            Test Notifikasi
-                        </button>
-                    </div>
-                    {/* Statistik */}
-                    <div
-                        style={{
-                            display: "flex",
-                            gap: 24,
-                            margin: "32px 0 24px 0",
-                            padding: "0 32px",
-                            flexWrap: "wrap",
-                        }}
-                    >
-                        <div
-                            style={{
-                                flex: 1,
-                                minWidth: 180,
-                                background: "#f7f8fa",
-                                borderRadius: 14,
-                                padding: 24,
-                                boxShadow: "0 2px 8px #2563eb11",
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "flex-start",
-                                marginBottom: 16,
-                            }}
-                        >
-                            <div
-                                style={{
-                                    color: "#2563eb",
-                                    fontWeight: 700,
-                                    fontSize: 16,
-                                }}
-                            >
-                                Total User
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-slate-600">
+                                    Total Users
+                                </p>
+                                <p className="text-2xl font-bold text-slate-900">
+                                    {loading ? "..." : users.length}
+                                </p>
                             </div>
-                            <div
-                                style={{
-                                    fontSize: 28,
-                                    fontWeight: 800,
-                                    color: "#222",
-                                    marginTop: 6,
-                                }}
-                            >
-                                {totalUser}
-                            </div>
-                        </div>
-                        <div
-                            style={{
-                                flex: 1,
-                                minWidth: 180,
-                                background: "#f7f8fa",
-                                borderRadius: 14,
-                                padding: 24,
-                                boxShadow: "0 2px 8px #2563eb11",
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "flex-start",
-                                marginBottom: 16,
-                            }}
-                        >
-                            <div
-                                style={{
-                                    color: "#2563eb",
-                                    fontWeight: 700,
-                                    fontSize: 16,
-                                }}
-                            >
-                                Total Data Pajak
-                            </div>
-                            <div
-                                style={{
-                                    fontSize: 28,
-                                    fontWeight: 800,
-                                    color: "#222",
-                                    marginTop: 6,
-                                }}
-                            >
-                                {totalPajak}
+                            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                                <svg
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    className="text-blue-600"
+                                >
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                    <circle cx="9" cy="7" r="4" />
+                                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                </svg>
                             </div>
                         </div>
                     </div>
-                    {/* Data User */}
-                    <div
-                        id="user-list"
-                        style={{
-                            background: "#fff",
-                            borderRadius: 16,
-                            boxShadow: "0 2px 12px #2563eb11",
-                            margin: "32px 16px 24px 16px",
-                            padding: 16,
-                            overflowX: "auto",
-                        }}
-                    >
-                        <h3
-                            style={{
-                                color: "#2563eb",
-                                marginBottom: 14,
-                                fontWeight: 700,
-                                fontSize: 18,
-                            }}
-                        >
-                            Data User
-                        </h3>
-                        <div
-                            style={{
-                                marginBottom: 10,
-                                color: "#1e3a8a",
-                                fontWeight: 600,
-                                fontSize: 15,
-                            }}
-                        >
-                            Total User: {users.length}
-                        </div>
 
-                        {/* Mobile Card View */}
-                        <div style={{ display: isMobile ? "block" : "none" }}>
-                            {pagedUsers.length === 0 ? (
-                                <div
-                                    style={{
-                                        textAlign: "center",
-                                        color: "#888",
-                                        padding: 18,
-                                    }}
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-slate-600">
+                                    Active Users
+                                </p>
+                                <p className="text-2xl font-bold text-green-600">
+                                    {loading ? "..." : statusCounts.aktif}
+                                </p>
+                            </div>
+                            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                                <svg
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    className="text-green-600"
                                 >
-                                    Tidak ada data user
-                                </div>
-                            ) : (
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 12,
-                                    }}
-                                >
-                                    {pagedUsers.map((user, idx) => (
-                                        <div
-                                            key={user._id || idx}
-                                            style={{
-                                                background: "#f8fafc",
-                                                borderRadius: 12,
-                                                padding: 16,
-                                                border: "1px solid #e2e8f0",
-                                                boxShadow:
-                                                    "0 2px 4px rgba(0,0,0,0.05)",
-                                            }}
-                                        >
-                                            <div
-                                                style={{
-                                                    display: "flex",
-                                                    justifyContent:
-                                                        "space-between",
-                                                    alignItems: "center",
-                                                    marginBottom: 8,
-                                                }}
-                                            >
-                                                <div
-                                                    style={{
-                                                        fontWeight: 600,
-                                                        color: "#2563eb",
-                                                        fontSize: 14,
-                                                    }}
-                                                >
-                                                    {user.email}
-                                                </div>
-                                                <div
-                                                    style={{
-                                                        background:
-                                                            user.role ===
-                                                            "admin"
-                                                                ? "#2563eb"
-                                                                : "#10b981",
-                                                        color: "white",
-                                                        padding: "4px 8px",
-                                                        borderRadius: 6,
-                                                        fontSize: 12,
-                                                        fontWeight: 600,
-                                                        textTransform:
-                                                            "capitalize",
-                                                    }}
-                                                >
-                                                    {user.role === "admin"
-                                                        ? "admin"
-                                                        : "user"}
-                                                </div>
-                                            </div>
-                                            <div
-                                                style={{
-                                                    color: "#374151",
-                                                    fontSize: 14,
-                                                }}
-                                            >
-                                                <strong>Nama:</strong>{" "}
-                                                {user.name}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                            <Pagination
-                                page={userPage}
-                                setPage={setUserPage}
-                                totalPages={userTotalPages}
-                            />
-                        </div>
-
-                        {/* Desktop Table View */}
-                        <div style={{ display: isMobile ? "none" : "block" }}>
-                            <div style={{ overflowX: "auto" }}>
-                                <table
-                                    style={{
-                                        width: "100%",
-                                        borderCollapse: "collapse",
-                                        background: "#fff",
-                                        fontSize: "clamp(13px,2vw,16px)",
-                                    }}
-                                >
-                                    <thead>
-                                        <tr style={{ background: "#e0e7ff" }}>
-                                            <th
-                                                style={{
-                                                    padding: 14,
-                                                    border: "1.5px solid #c7d2fe",
-                                                    fontWeight: 800,
-                                                    color: "#1e3a8a",
-                                                    textAlign: "left",
-                                                    letterSpacing: 0.5,
-                                                }}
-                                            >
-                                                Email
-                                            </th>
-                                            <th
-                                                style={{
-                                                    padding: 14,
-                                                    border: "1.5px solid #c7d2fe",
-                                                    fontWeight: 800,
-                                                    color: "#1e3a8a",
-                                                    textAlign: "left",
-                                                    letterSpacing: 0.5,
-                                                }}
-                                            >
-                                                Nama
-                                            </th>
-                                            <th
-                                                style={{
-                                                    padding: 14,
-                                                    border: "1.5px solid #c7d2fe",
-                                                    fontWeight: 800,
-                                                    color: "#1e3a8a",
-                                                    textAlign: "left",
-                                                    letterSpacing: 0.5,
-                                                }}
-                                            >
-                                                Role
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {pagedUsers.length === 0 ? (
-                                            <tr>
-                                                <td
-                                                    colSpan={4}
-                                                    style={{
-                                                        textAlign: "center",
-                                                        color: "#888",
-                                                        padding: 18,
-                                                    }}
-                                                >
-                                                    Tidak ada data user
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            pagedUsers.map((user, idx) => (
-                                                <tr
-                                                    key={user._id || idx}
-                                                    style={{
-                                                        background:
-                                                            idx % 2 === 0
-                                                                ? "#fff"
-                                                                : "#f9fafb",
-                                                        transition:
-                                                            "background 0.2s",
-                                                    }}
-                                                    onMouseOver={(e) =>
-                                                        (e.currentTarget.style.background =
-                                                            "#dbeafe")
-                                                    }
-                                                    onMouseOut={(e) =>
-                                                        (e.currentTarget.style.background =
-                                                            idx % 2 === 0
-                                                                ? "#fff"
-                                                                : "#f9fafb")
-                                                    }
-                                                >
-                                                    <td
-                                                        style={{
-                                                            padding: 14,
-                                                            border: "1.5px solid #c7d2fe",
-                                                            color: "#222",
-                                                            fontWeight: 500,
-                                                        }}
-                                                    >
-                                                        {user.email}
-                                                    </td>
-                                                    <td
-                                                        style={{
-                                                            padding: 14,
-                                                            border: "1.5px solid #c7d2fe",
-                                                            color: "#222",
-                                                            fontWeight: 500,
-                                                        }}
-                                                    >
-                                                        {user.name}
-                                                    </td>
-                                                    <td
-                                                        style={{
-                                                            padding: 14,
-                                                            border: "1.5px solid #c7d2fe",
-                                                            color: "#2563eb",
-                                                            textTransform:
-                                                                "capitalize",
-                                                            fontWeight: 600,
-                                                        }}
-                                                    >
-                                                        {user.role === "admin"
-                                                            ? "admin"
-                                                            : "user"}
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                                <Pagination
-                                    page={userPage}
-                                    setPage={setUserPage}
-                                    totalPages={userTotalPages}
-                                />
+                                    <path d="M9 12l2 2 4-4" />
+                                    <circle cx="12" cy="12" r="10" />
+                                </svg>
                             </div>
                         </div>
                     </div>
-                    {/* Data Pajak */}
-                    <div
-                        id="tax-list"
-                        style={{
-                            background: "#fff",
-                            borderRadius: 16,
-                            boxShadow: "0 2px 12px #2563eb11",
-                            margin: "0 16px 32px 16px",
-                            padding: 16,
-                            overflowX: "auto",
-                        }}
-                    >
-                        <h3
-                            style={{
-                                color: "#2563eb",
-                                marginBottom: 14,
-                                fontWeight: 700,
-                                fontSize: 18,
-                            }}
-                        >
-                            Data Pajak
-                        </h3>
-                        <div
-                            style={{
-                                marginBottom: 10,
-                                color: "#1e3a8a",
-                                fontWeight: 600,
-                                fontSize: 15,
-                            }}
-                        >
-                            Total Pajak: {taxes.length}
-                            <br />
-                            Total Nominal Pajak:{" "}
-                            <span style={{ color: "#16a34a", fontWeight: 700 }}>
-                                {pajakStats.totalNominal
-                                    ? `Rp ${pajakStats.totalNominal.toLocaleString(
-                                          "id-ID"
-                                      )}`
-                                    : "-"}
-                            </span>
-                        </div>
-                        <div
-                            style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 10,
-                                marginBottom: 10,
-                            }}
-                        >
-                            <div
-                                style={{
-                                    display: "flex",
-                                    gap: 18,
-                                    flexWrap: "wrap",
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        color: "#2563eb",
-                                        fontWeight: 600,
-                                        fontSize: 15,
-                                    }}
-                                >
-                                    Lunas: {pajakStats.percent.lunas}%
-                                </div>
-                                <div
-                                    style={{
-                                        color: "#fbbf24",
-                                        fontWeight: 600,
-                                        fontSize: 15,
-                                    }}
-                                >
-                                    Proses: {pajakStats.percent.proses}%
-                                </div>
-                                <div
-                                    style={{
-                                        color: "#ef4444",
-                                        fontWeight: 600,
-                                        fontSize: 15,
-                                    }}
-                                >
-                                    Belum Lunas:{" "}
-                                    {pajakStats.percent["belum lunas"]}%
-                                </div>
-                            </div>
-                            <PieChart
-                                data={[
-                                    {
-                                        label: "Lunas",
-                                        value: pajakStats.count.lunas,
-                                        color: "#2563eb",
-                                    },
-                                    {
-                                        label: "Proses",
-                                        value: pajakStats.count.proses,
-                                        color: "#fbbf24",
-                                    },
-                                    {
-                                        label: "Belum Lunas",
-                                        value: pajakStats.count["belum lunas"],
-                                        color: "#ef4444",
-                                    },
-                                ]}
-                            />
-                        </div>
-                        <div style={{ overflowX: "auto" }}>
-                            {/* Mobile Card View */}
-                            <div
-                                style={{ display: isMobile ? "block" : "none" }}
-                            >
-                                {pagedTaxes.length === 0 ? (
-                                    <div
-                                        style={{
-                                            textAlign: "center",
-                                            color: "#888",
-                                            padding: 18,
-                                        }}
-                                    >
-                                        Tidak ada data pajak
-                                    </div>
-                                ) : (
-                                    <div
-                                        style={{
-                                            display: "flex",
-                                            flexDirection: "column",
-                                            gap: 12,
-                                        }}
-                                    >
-                                        {pagedTaxes.map((tax, idx) => {
-                                            const user = users.find(
-                                                (u) =>
-                                                    u._id === tax.userId ||
-                                                    u._id?.toString() ===
-                                                        tax.userId
-                                            )
-                                            const getStatusColor = (status) => {
-                                                const statusLower = (
-                                                    status || ""
-                                                ).toLowerCase()
-                                                if (statusLower === "lunas")
-                                                    return "#10b981"
-                                                if (statusLower === "proses")
-                                                    return "#f59e0b"
-                                                if (
-                                                    statusLower ===
-                                                    "belum lunas"
-                                                )
-                                                    return "#ef4444"
-                                                return "#6b7280"
-                                            }
-                                            const getNominal = () => {
-                                                if (
-                                                    tax.jumlah !== undefined &&
-                                                    tax.jumlah !== null &&
-                                                    tax.jumlah !== ""
-                                                ) {
-                                                    return `Rp ${parseFloat(
-                                                        tax.jumlah
-                                                    ).toLocaleString("id-ID")}`
-                                                } else if (
-                                                    tax.total !== undefined &&
-                                                    tax.total !== null &&
-                                                    tax.total !== ""
-                                                ) {
-                                                    return `Rp ${parseFloat(
-                                                        tax.total
-                                                    ).toLocaleString("id-ID")}`
-                                                } else if (
-                                                    tax.nominal !== undefined &&
-                                                    tax.nominal !== null &&
-                                                    tax.nominal !== ""
-                                                ) {
-                                                    return `Rp ${parseFloat(
-                                                        tax.nominal
-                                                    ).toLocaleString("id-ID")}`
-                                                }
-                                                return "-"
-                                            }
-                                            return (
-                                                <div
-                                                    key={tax._id || idx}
-                                                    style={{
-                                                        background: "#f8fafc",
-                                                        borderRadius: 12,
-                                                        padding: 16,
-                                                        border: "1px solid #e2e8f0",
-                                                        boxShadow:
-                                                            "0 2px 4px rgba(0,0,0,0.05)",
-                                                    }}
-                                                >
-                                                    <div
-                                                        style={{
-                                                            display: "flex",
-                                                            justifyContent:
-                                                                "space-between",
-                                                            alignItems:
-                                                                "center",
-                                                            marginBottom: 8,
-                                                        }}
-                                                    >
-                                                        <div
-                                                            style={{
-                                                                fontWeight: 600,
-                                                                color: "#2563eb",
-                                                                fontSize: 14,
-                                                            }}
-                                                        >
-                                                            {user
-                                                                ? user.name
-                                                                : "-"}
-                                                        </div>
-                                                        <div
-                                                            style={{
-                                                                background:
-                                                                    getStatusColor(
-                                                                        tax.status
-                                                                    ),
-                                                                color: "white",
-                                                                padding:
-                                                                    "4px 8px",
-                                                                borderRadius: 6,
-                                                                fontSize: 12,
-                                                                fontWeight: 600,
-                                                            }}
-                                                        >
-                                                            {tax.status || "-"}
-                                                        </div>
-                                                    </div>
-                                                    <div
-                                                        style={{
-                                                            display: "flex",
-                                                            flexDirection:
-                                                                "column",
-                                                            gap: 4,
-                                                        }}
-                                                    >
-                                                        <div
-                                                            style={{
-                                                                color: "#374151",
-                                                                fontSize: 14,
-                                                            }}
-                                                        >
-                                                            <strong>
-                                                                Nama:
-                                                            </strong>{" "}
-                                                            {tax.name || "-"}
-                                                        </div>
-                                                        <div
-                                                            style={{
-                                                                color: "#374151",
-                                                                fontSize: 14,
-                                                            }}
-                                                        >
-                                                            <strong>
-                                                                Alamat:
-                                                            </strong>{" "}
-                                                            {tax.address || "-"}
-                                                        </div>
-                                                        <div
-                                                            style={{
-                                                                color: "#374151",
-                                                                fontSize: 14,
-                                                            }}
-                                                        >
-                                                            <strong>
-                                                                Tahun:
-                                                            </strong>{" "}
-                                                            {tax.year || "-"}
-                                                        </div>
-                                                        <div
-                                                            style={{
-                                                                color: "#374151",
-                                                                fontSize: 14,
-                                                            }}
-                                                        >
-                                                            <strong>
-                                                                Total:
-                                                            </strong>{" "}
-                                                            {getNominal()}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                )}
-                                <Pagination
-                                    page={taxPage}
-                                    setPage={setTaxPage}
-                                    totalPages={taxTotalPages}
-                                />
-                            </div>
 
-                            {/* Desktop Table View */}
-                            <div
-                                style={{ display: isMobile ? "none" : "block" }}
-                            >
-                                <table
-                                    style={{
-                                        width: "100%",
-                                        borderCollapse: "collapse",
-                                        background: "#fff",
-                                        fontSize: "clamp(13px,2vw,16px)",
-                                    }}
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-slate-600">
+                                    Total Data Pajak
+                                </p>
+                                <p className="text-2xl font-bold text-purple-600">
+                                    {loading ? "..." : taxes.length}
+                                </p>
+                            </div>
+                            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                                <svg
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    className="text-purple-600"
                                 >
-                                    <thead>
-                                        <tr style={{ background: "#e0e7ff" }}>
-                                            <th
-                                                style={{
-                                                    padding: 14,
-                                                    border: "1.5px solid #c7d2fe",
-                                                    fontWeight: 800,
-                                                    color: "#1e3a8a",
-                                                    textAlign: "left",
-                                                    letterSpacing: 0.5,
-                                                }}
-                                            >
-                                                Nama UserId
-                                            </th>
-                                            <th
-                                                style={{
-                                                    padding: 14,
-                                                    border: "1.5px solid #c7d2fe",
-                                                    fontWeight: 800,
-                                                    color: "#1e3a8a",
-                                                    textAlign: "left",
-                                                    letterSpacing: 0.5,
-                                                }}
-                                            >
-                                                Nama
-                                            </th>
-                                            <th
-                                                style={{
-                                                    padding: 14,
-                                                    border: "1.5px solid #c7d2fe",
-                                                    fontWeight: 800,
-                                                    color: "#1e3a8a",
-                                                    textAlign: "left",
-                                                    letterSpacing: 0.5,
-                                                }}
-                                            >
-                                                Alamat
-                                            </th>
-                                            <th
-                                                style={{
-                                                    padding: 14,
-                                                    border: "1.5px solid #c7d2fe",
-                                                    fontWeight: 800,
-                                                    color: "#1e3a8a",
-                                                    textAlign: "left",
-                                                    letterSpacing: 0.5,
-                                                }}
-                                            >
-                                                Tahun
-                                            </th>
-                                            <th
-                                                style={{
-                                                    padding: 14,
-                                                    border: "1.5px solid #c7d2fe",
-                                                    fontWeight: 800,
-                                                    color: "#1e3a8a",
-                                                    textAlign: "left",
-                                                    letterSpacing: 0.5,
-                                                }}
-                                            >
-                                                Status
-                                            </th>
-                                            <th
-                                                style={{
-                                                    padding: 14,
-                                                    border: "1.5px solid #c7d2fe",
-                                                    fontWeight: 800,
-                                                    color: "#1e3a8a",
-                                                    textAlign: "left",
-                                                    letterSpacing: 0.5,
-                                                }}
-                                            >
-                                                Total
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {pagedTaxes.length === 0 ? (
-                                            <tr>
-                                                <td
-                                                    colSpan={7}
-                                                    style={{
-                                                        textAlign: "center",
-                                                        color: "#888",
-                                                        padding: 18,
-                                                    }}
-                                                >
-                                                    Tidak ada data pajak
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            pagedTaxes.map((tax, idx) => {
-                                                const user = users.find(
-                                                    (u) =>
-                                                        u._id === tax.userId ||
-                                                        u._id?.toString() ===
-                                                            tax.userId
-                                                )
-                                                return (
-                                                    <tr
-                                                        key={tax._id || idx}
-                                                        style={{
-                                                            background:
-                                                                idx % 2 === 0
-                                                                    ? "#fff"
-                                                                    : "#f9fafb",
-                                                            transition:
-                                                                "background 0.2s",
-                                                        }}
-                                                        onMouseOver={(e) =>
-                                                            (e.currentTarget.style.background =
-                                                                "#dbeafe")
-                                                        }
-                                                        onMouseOut={(e) =>
-                                                            (e.currentTarget.style.background =
-                                                                idx % 2 === 0
-                                                                    ? "#fff"
-                                                                    : "#f9fafb")
-                                                        }
-                                                    >
-                                                        <td
-                                                            style={{
-                                                                padding: 14,
-                                                                border: "1.5px solid #c7d2fe",
-                                                                color: "#222",
-                                                                fontWeight: 500,
-                                                            }}
-                                                        >
-                                                            {user
-                                                                ? user.name
-                                                                : "-"}
-                                                        </td>
-                                                        <td
-                                                            style={{
-                                                                padding: 14,
-                                                                border: "1.5px solid #c7d2fe",
-                                                                color: "#222",
-                                                                fontWeight: 500,
-                                                            }}
-                                                        >
-                                                            {tax.name || "-"}
-                                                        </td>
-                                                        <td
-                                                            style={{
-                                                                padding: 14,
-                                                                border: "1.5px solid #c7d2fe",
-                                                                color: "#222",
-                                                                fontWeight: 500,
-                                                            }}
-                                                        >
-                                                            {tax.address || "-"}
-                                                        </td>
-                                                        <td
-                                                            style={{
-                                                                padding: 14,
-                                                                border: "1.5px solid #c7d2fe",
-                                                                color: "#222",
-                                                                fontWeight: 500,
-                                                            }}
-                                                        >
-                                                            {tax.year || "-"}
-                                                        </td>
-                                                        <td
-                                                            style={{
-                                                                padding: 14,
-                                                                border: "1.5px solid #c7d2fe",
-                                                                color: "#222",
-                                                                fontWeight: 500,
-                                                            }}
-                                                        >
-                                                            {tax.status || "-"}
-                                                        </td>
-                                                        <td
-                                                            style={{
-                                                                padding: 14,
-                                                                border: "1.5px solid #c7d2fe",
-                                                                color: "#222",
-                                                                fontWeight: 500,
-                                                            }}
-                                                        >
-                                                            {tax.jumlah !==
-                                                                undefined &&
-                                                            tax.jumlah !==
-                                                                null &&
-                                                            tax.jumlah !==
-                                                                "" ? (
-                                                                `Rp ${parseFloat(
-                                                                    tax.jumlah
-                                                                ).toLocaleString(
-                                                                    "id-ID"
-                                                                )}`
-                                                            ) : tax.total !==
-                                                                  undefined &&
-                                                              tax.total !==
-                                                                  null &&
-                                                              tax.total !==
-                                                                  "" ? (
-                                                                `Rp ${parseFloat(
-                                                                    tax.total
-                                                                ).toLocaleString(
-                                                                    "id-ID"
-                                                                )}`
-                                                            ) : tax.nominal !==
-                                                                  undefined &&
-                                                              tax.nominal !==
-                                                                  null &&
-                                                              tax.nominal !==
-                                                                  "" ? (
-                                                                `Rp ${parseFloat(
-                                                                    tax.nominal
-                                                                ).toLocaleString(
-                                                                    "id-ID"
-                                                                )}`
-                                                            ) : (
-                                                                <span
-                                                                    style={{
-                                                                        color: "red",
-                                                                    }}
-                                                                >
-                                                                    -
-                                                                </span>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                )
-                                            })
-                                        )}
-                                    </tbody>
-                                </table>
-                                <Pagination
-                                    page={taxPage}
-                                    setPage={setTaxPage}
-                                    totalPages={taxTotalPages}
-                                />
+                                    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-slate-600">
+                                    Total Nominal
+                                </p>
+                                <p className="text-2xl font-bold text-orange-600">
+                                    {loading
+                                        ? "..."
+                                        : `Rp ${totalNominal.toLocaleString(
+                                              "id-ID"
+                                          )}`}
+                                </p>
+                            </div>
+                            <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                                <svg
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    className="text-orange-600"
+                                >
+                                    <line x1="12" y1="1" x2="12" y2="23" />
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                                </svg>
                             </div>
                         </div>
                     </div>
                 </div>
-            </main>
-            <style>{`
-                @media (max-width: 900px) {
-                    main { margin-left: 60px !important; }
-                }
-                @media (max-width: 768px) {
-                    main { margin-left: 0 !important; padding: 0 2vw !important; }
-                    .sidebar { width: 0 !important; }
-                    .dashboard-header, .dashboard-stats { flex-direction: column !important; gap: 12px !important; }
-                    table { font-size: 13px !important; }
-                    th, td { padding: 8px !important; }
-                    
-                    /* Mobile card styling */
-                    #user-list, #tax-list {
-                        margin: 16px 8px 16px 8px !important;
-                        padding: 12px !important;
-                    }
-                    
-                    /* Mobile pagination styling */
-                    .pagination-container {
-                        display: flex !important;
-                        gap: 6px !important;
-                        justify-content: center !important;
-                        margin: 16px 0 0 0 !important;
-                        flex-wrap: wrap !important;
-                    }
-                    .pagination-container button {
-                        min-width: 36px !important;
-                        height: 36px !important;
-                        font-size: 14px !important;
-                        padding: 6px 10px !important;
-                    }
-                }
-                @media (max-width: 500px) {
-                    main { padding: 0 1vw !important; }
-                    h1, h3 { font-size: 17px !important; }
-                    .dashboard-header { gap: 8px !important; }
-                    
-                    /* Card styling for very small screens */
-                    #user-list, #tax-list {
-                        margin: 12px 4px 12px 4px !important;
-                        padding: 8px !important;
-                    }
-                    
-                    /* Smaller pagination for very small screens */
-                    .pagination-container button {
-                        min-width: 32px !important;
-                        height: 32px !important;
-                        font-size: 13px !important;
-                        padding: 4px 8px !important;
-                    }
-                }
-            `}</style>
-        </div>
-    )
-}
 
-function PieChart({ data }) {
-    // data: array of { label, value, color }
-    const total = data.reduce((sum, d) => sum + d.value, 0) || 1
-    let acc = 0
-    const slices = data.map((d, i) => {
-        const start = acc
-        const angle = (d.value / total) * 360
-        acc += angle
-        return { ...d, start, angle }
-    })
-    // SVG arc generator
-    function describeArc(cx, cy, r, startAngle, endAngle) {
-        const rad = (deg) => (Math.PI / 180) * deg
-        const x1 = cx + r * Math.cos(rad(startAngle - 90))
-        const y1 = cy + r * Math.sin(rad(startAngle - 90))
-        const x2 = cx + r * Math.cos(rad(endAngle - 90))
-        const y2 = cy + r * Math.sin(rad(endAngle - 90))
-        const largeArc = endAngle - startAngle > 180 ? 1 : 0
-        return [
-            `M ${cx} ${cy}`,
-            `L ${x1} ${y1}`,
-            `A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`,
-            "Z",
-        ].join(" ")
-    }
-    return (
-        <div
-            style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                marginBottom: 18,
-            }}
-        >
-            <svg width={120} height={120} viewBox="0 0 120 120">
-                {slices.map((s, i) => (
-                    <path
-                        key={i}
-                        d={describeArc(60, 60, 54, s.start, s.start + s.angle)}
-                        fill={s.color}
-                        stroke="#fff"
-                        strokeWidth={2}
-                        opacity={s.value === 0 ? 0.15 : 1}
-                    />
-                ))}
-                {/* Donut hole */}
-                <circle cx={60} cy={60} r={34} fill="#fff" />
-                {/* Persentase utama di tengah */}
-                <text
-                    x={60}
-                    y={66}
-                    textAnchor="middle"
-                    fontWeight="bold"
-                    fontSize={22}
-                    fill="#2563eb"
-                >
-                    {data[0]?.value
-                        ? Math.round((data[0].value / total) * 100)
-                        : 0}
-                    %
-                </text>
-            </svg>
-            <div style={{ display: "flex", gap: 18, marginTop: 10 }}>
-                {data.map((d, i) => (
-                    <div
-                        key={i}
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 6,
-                        }}
-                    >
-                        <span
-                            style={{
-                                width: 14,
-                                height: 14,
-                                borderRadius: 7,
-                                background: d.color,
-                                display: "inline-block",
-                            }}
-                        ></span>
-                        <span
-                            style={{
-                                color: d.color,
-                                fontWeight: 600,
-                                fontSize: 15,
-                            }}
-                        >
-                            {d.label}
-                        </span>
+                {/* Content Sections */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Recent Users */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                            <h2 className="text-lg font-semibold text-slate-900">
+                                Recent Users
+                            </h2>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th className="text-left py-3 px-4 font-medium text-slate-700 text-sm">
+                                            Name
+                                        </th>
+                                        <th className="text-left py-3 px-4 font-medium text-slate-700 text-sm">
+                                            Email
+                                        </th>
+                                        <th className="text-left py-3 px-4 font-medium text-slate-700 text-sm">
+                                            Status
+                                        </th>
+                                        <th className="text-left py-3 px-4 font-medium text-slate-700 text-sm">
+                                            Action
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pagedUsers.map((user) => (
+                                        <tr
+                                            key={user.id}
+                                            className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                                        >
+                                            <td className="py-3 px-4 font-medium text-slate-900">
+                                                {user.name}
+                                            </td>
+                                            <td className="py-3 px-4 text-slate-700 text-sm">
+                                                {user.email}
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <span
+                                                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                                        user.status === "aktif"
+                                                            ? "bg-green-100 text-green-700"
+                                                            : "bg-red-100 text-red-700"
+                                                    }`}
+                                                >
+                                                    {user.status}
+                                                </span>
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <button
+                                                    onClick={() =>
+                                                        updateUserStatus(
+                                                            user.id,
+                                                            user.status ===
+                                                                "aktif"
+                                                                ? "nonaktif"
+                                                                : "aktif"
+                                                        )
+                                                    }
+                                                    className={`p-2 rounded-lg transition-colors ${
+                                                        user.status === "aktif"
+                                                            ? "bg-red-100 text-red-700 hover:bg-red-200"
+                                                            : "bg-green-100 text-green-700 hover:bg-green-200"
+                                                    }`}
+                                                    title={user.status === "aktif" ? "Nonaktifkan" : "Aktifkan"}
+                                                >
+                                                    {user.status === "aktif" ? (
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                            <circle cx="12" cy="12" r="10"/>
+                                                            <line x1="15" y1="9" x2="9" y2="15"/>
+                                                            <line x1="9" y1="9" x2="15" y2="15"/>
+                                                        </svg>
+                                                    ) : (
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                            <path d="M9 12l2 2 4-4"/>
+                                                            <circle cx="12" cy="12" r="10"/>
+                                                        </svg>
+                                                    )}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {/* Pagination for Users */}
+                        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-slate-600">
+                                    Page {userPage} of {userTotalPages}
+                                </span>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() =>
+                                            setUserPage((prev) =>
+                                                Math.max(prev - 1, 1)
+                                            )
+                                        }
+                                        disabled={userPage === 1}
+                                        className="px-3 py-1 rounded-lg text-sm border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Previous
+                                    </button>
+                                    <button
+                                        onClick={() =>
+                                            setUserPage((prev) =>
+                                                Math.min(
+                                                    prev + 1,
+                                                    userTotalPages
+                                                )
+                                            )
+                                        }
+                                        disabled={userPage === userTotalPages}
+                                        className="px-3 py-1 rounded-lg text-sm border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                ))}
+
+                    {/* Recent Tax Data */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                            <h2 className="text-lg font-semibold text-slate-900">
+                                Recent Tax Data
+                            </h2>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th className="text-left py-3 px-4 font-medium text-slate-700 text-sm">
+                                            Name
+                                        </th>
+                                        <th className="text-left py-3 px-4 font-medium text-slate-700 text-sm">
+                                            Amount
+                                        </th>
+                                        <th className="text-left py-3 px-4 font-medium text-slate-700 text-sm">
+                                            Action
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pagedTaxes.map((tax) => (
+                                        <tr
+                                            key={tax.id}
+                                            className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                                        >
+                                            <td className="py-3 px-4 font-medium text-slate-900">
+                                                {tax.nama}
+                                            </td>
+                                            <td className="py-3 px-4 text-slate-700 font-semibold">
+                                                Rp{" "}
+                                                {parseInt(
+                                                    tax.jumlah
+                                                ).toLocaleString("id-ID")}
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                <button
+                                                    onClick={() =>
+                                                        deleteTax(tax.id)
+                                                    }
+                                                    className="p-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                                                    title="Delete Tax"
+                                                >
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                        <polyline points="3,6 5,6 21,6"/>
+                                                        <path d="M19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"/>
+                                                        <line x1="10" y1="11" x2="10" y2="17"/>
+                                                        <line x1="14" y1="11" x2="14" y2="17"/>
+                                                    </svg>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {/* Pagination for Taxes */}
+                        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-slate-600">
+                                    Page {taxPage} of {taxTotalPages}
+                                </span>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() =>
+                                            setTaxPage((prev) =>
+                                                Math.max(prev - 1, 1)
+                                            )
+                                        }
+                                        disabled={taxPage === 1}
+                                        className="px-3 py-1 rounded-lg text-sm border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Previous
+                                    </button>
+                                    <button
+                                        onClick={() =>
+                                            setTaxPage((prev) =>
+                                                Math.min(
+                                                    prev + 1,
+                                                    taxTotalPages
+                                                )
+                                            )
+                                        }
+                                        disabled={taxPage === taxTotalPages}
+                                        className="px-3 py-1 rounded-lg text-sm border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     )
-}
-
-function Pagination({ page, setPage, totalPages }) {
-    if (totalPages <= 1) return null
-    const pages = []
-    for (let i = 1; i <= totalPages; i++) pages.push(i)
-    return (
-        <div
-            className="pagination-container"
-            style={{
-                display: "flex",
-                gap: 8,
-                justifyContent: "center",
-                margin: "18px 0 0 0",
-            }}
-        >
-            <button
-                onClick={() => setPage(page - 1)}
-                disabled={page === 1}
-                style={pageBtnStyle}
-            >
-                &laquo;
-            </button>
-            {pages.map((p) => (
-                <button
-                    key={p}
-                    onClick={() => setPage(p)}
-                    style={{
-                        ...pageBtnStyle,
-                        background: p === page ? "#2563eb" : "#e0e7ff",
-                        color: p === page ? "#fff" : "#222",
-                    }}
-                >
-                    {p}
-                </button>
-            ))}
-            <button
-                onClick={() => setPage(page + 1)}
-                disabled={page === totalPages}
-                style={pageBtnStyle}
-            >
-                &raquo;
-            </button>
-        </div>
-    )
-}
-
-const pageBtnStyle = {
-    border: "none",
-    borderRadius: 6,
-    padding: "7px 14px",
-    fontWeight: 600,
-    fontSize: 15,
-    cursor: "pointer",
-    background: "#e0e7ff",
-    color: "#222",
 }

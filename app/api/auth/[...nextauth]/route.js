@@ -16,9 +16,15 @@ const authOptions = {
                     const db = await connectToDatabase()
                     const usersCollection = db.collection("User")
 
-                    const user = await usersCollection.findOne({
-                        email: credentials.email,
-                    })
+                    // Add timeout to database query
+                    const user = await Promise.race([
+                        usersCollection.findOne({
+                            email: credentials.email,
+                        }),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Database timeout')), 5000)
+                        )
+                    ])
 
                     if (!user) {
                         const error = new Error("redirect-register")
@@ -32,10 +38,13 @@ const authOptions = {
                         throw error
                     }
 
-                    const isValid = await bcrypt.compare(
-                        credentials.password,
-                        user.password
-                    )
+                    // Add timeout to password comparison
+                    const isValid = await Promise.race([
+                        bcrypt.compare(credentials.password, user.password),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Password check timeout')), 3000)
+                        )
+                    ])
 
                     if (!isValid) {
                         const error = new Error("wrong-credentials")
@@ -51,6 +60,7 @@ const authOptions = {
                         role: user.role,
                     }
                 } catch (error) {
+                    console.error('Auth error:', error.message)
                     // Forward error message to frontend
                     throw error
                 }
@@ -67,7 +77,7 @@ const authOptions = {
     },
     pages: {
         signIn: "/login",
-        signOut: "/login",
+        signOut: "https://pajak.iqbaldev.site",
         error: "/login",
     },
     secret: process.env.NEXTAUTH_SECRET,

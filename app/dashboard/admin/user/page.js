@@ -1,887 +1,873 @@
 "use client"
 import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
-import AdminSidebar from "@/app/components/AdminSidebar"
-import LoadingSpinner from "@/app/components/LoadingSpinner"
 
-export default function UserListPage() {
-    const { data: session } = useSession()
+export default function AdminUserPage() {
+    const { data: session, status } = useSession()
     const [users, setUsers] = useState([])
     const [loading, setLoading] = useState(true)
-    const [modal, setModal] = useState({ open: false, mode: "add", user: null })
-    const [form, setForm] = useState({
-        name: "",
-        email: "",
-        role: "user",
-        password: "",
-        isActive: true,
+    const [page, setPage] = useState(1)
+    const [searchTerm, setSearchTerm] = useState("")
+    const [roleFilter, setRoleFilter] = useState("all")
+    const [statusFilter, setStatusFilter] = useState("all")
+    const [selectedUsers, setSelectedUsers] = useState([])
+    const [userModal, setUserModal] = useState({
+        open: false,
+        mode: "create",
+        user: null,
     })
-    const [error, setError] = useState("")
-    const [sidebarOpen, setSidebarOpen] = useState(true)
-    const [isMobile, setIsMobile] = useState(false)
+    const [bulkAction, setBulkAction] = useState("")
+    const pageSize = 10
+
+    const filteredUsers = Array.isArray(users)
+        ? users.filter((user) => {
+              const matchesSearch =
+                  user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+              const matchesRole =
+                  roleFilter === "all" || user.role === roleFilter
+              const matchesStatus =
+                  statusFilter === "all" || user.status === statusFilter
+              return matchesSearch && matchesRole && matchesStatus
+          })
+        : []
+
+    const pagedUsers = filteredUsers.slice(
+        (page - 1) * pageSize,
+        page * pageSize
+    )
+    const totalPages = Math.ceil(filteredUsers.length / pageSize) || 1
+
+    // Statistics
+    const stats = {
+        total: users.length,
+        active: users.filter((u) => u.status === "aktif").length,
+        inactive: users.filter((u) => u.status === "nonaktif").length,
+        admins: users.filter((u) => u.role === "admin").length,
+    }
 
     useEffect(() => {
-        fetchUsers()
-        // Polling setiap 5 detik
-        const interval = setInterval(() => {
+        if (status === "authenticated" && session?.user?.role === "admin") {
             fetchUsers()
-        }, 5000)
-        return () => clearInterval(interval)
-    }, [])
-
-    useEffect(() => {
-        function handleResize() {
-            setIsMobile(window.innerWidth < 768)
-            if (window.innerWidth < 768) setSidebarOpen(false)
-            else setSidebarOpen(true)
         }
-        handleResize()
-        window.addEventListener("resize", handleResize)
-        return () => window.removeEventListener("resize", handleResize)
-    }, [])
+    }, [status, session])
 
-    async function fetchUsers() {
-        setLoading(true)
-        const res = await fetch("/api/admin/users")
-        const data = await res.json()
-        setUsers(data.users || data || [])
-        setLoading(false)
-    }
-
-    function openEdit(user) {
-        setForm({
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            password: "",
-            isActive: user.isActive !== false,
-        })
-        setModal({ open: true, mode: "edit", user })
-        setError("")
-    }
-    function closeModal() {
-        setModal({ open: false, mode: "add", user: null })
-        setError("")
-    }
-
-    async function handleSubmit(e) {
-        e.preventDefault()
-        setError("")
-        if (!form.name || !form.email) {
-            setError("Nama dan email wajib diisi")
-            return
-        }
+    const fetchUsers = async () => {
         try {
-            let res
-            const payload = { ...form }
-            if (!form.password) delete payload.password
-            if (modal.mode === "add") {
-                res = await fetch("/api/admin/users", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload),
-                })
+            const response = await fetch("/api/admin/users")
+            if (response.ok) {
+                const data = await response.json()
+                setUsers(Array.isArray(data) ? data : [])
             } else {
-                res = await fetch(`/api/admin/users`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ ...payload, _id: modal.user._id }),
-                })
+                setUsers([])
             }
-            if (!res.ok) throw new Error("Gagal menyimpan data")
-            closeModal()
-            fetchUsers()
-        } catch (err) {
-            setError(err.message || "Gagal menyimpan data")
+        } catch (error) {
+            console.error("Error fetching users:", error)
+            setUsers([])
+        } finally {
+            setLoading(false)
         }
     }
 
-    async function handleDelete(user) {
-        if (!confirm(`Hapus user ${user.name}?`)) return
-        await fetch("/api/admin/users", {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ _id: user._id }),
-        })
-        fetchUsers()
+    const createUser = async (userData) => {
+        try {
+            const response = await fetch("/api/admin/users", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(userData),
+            })
+
+            if (response.ok) {
+                const newUser = await response.json()
+                setUsers((prev) => [...prev, newUser])
+                setUserModal({ open: false, mode: "create", user: null })
+            }
+        } catch (error) {
+            console.error("Error creating user:", error)
+        }
+    }
+
+    const updateUser = async (userData) => {
+        try {
+            const response = await fetch(`/api/admin/users/${userData.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(userData),
+            })
+
+            if (response.ok) {
+                const updatedUser = await response.json()
+                setUsers((prev) =>
+                    prev.map((user) =>
+                        user.id === userData.id ? updatedUser : user
+                    )
+                )
+                setUserModal({ open: false, mode: "edit", user: null })
+            }
+        } catch (error) {
+            console.error("Error updating user:", error)
+        }
+    }
+
+    const updateUserStatus = async (userId, newStatus) => {
+        try {
+            const response = await fetch(`/api/admin/users/${userId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: newStatus }),
+            })
+
+            if (response.ok) {
+                setUsers((prev) =>
+                    prev.map((user) =>
+                        user.id === userId
+                            ? { ...user, status: newStatus }
+                            : user
+                    )
+                )
+            }
+        } catch (error) {
+            console.error("Error updating user status:", error)
+        }
+    }
+
+    const deleteUser = async (userId) => {
+        if (!confirm("Apakah Anda yakin ingin menghapus user ini?")) return
+
+        try {
+            const response = await fetch(`/api/admin/users/${userId}`, {
+                method: "DELETE",
+            })
+
+            if (response.ok) {
+                setUsers((prev) => prev.filter((user) => user.id !== userId))
+            }
+        } catch (error) {
+            console.error("Error deleting user:", error)
+        }
+    }
+
+    const handleBulkAction = async () => {
+        if (!bulkAction || selectedUsers.length === 0) return
+
+        try {
+            const response = await fetch("/api/admin/users/bulk", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: bulkAction,
+                    userIds: selectedUsers,
+                }),
+            })
+
+            if (response.ok) {
+                fetchUsers()
+                setSelectedUsers([])
+                setBulkAction("")
+            }
+        } catch (error) {
+            console.error("Error performing bulk action:", error)
+        }
+    }
+
+    const selectAllUsers = () => {
+        if (selectedUsers.length === pagedUsers.length) {
+            setSelectedUsers([])
+        } else {
+            setSelectedUsers(pagedUsers.map((user) => user.id))
+        }
+    }
+
+    if (status === "loading") {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        )
+    }
+
+    if (status !== "authenticated" || session?.user?.role !== "admin") {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center p-4">
+                <div className="text-center">
+                    <h1 className="text-2xl font-bold text-red-600 mb-2">
+                        Access Denied
+                    </h1>
+                    <p className="text-red-500">
+                        You don't have permission to access this page.
+                    </p>
+                </div>
+            </div>
+        )
     }
 
     return (
-        <>
-            <div style={{ display: "flex" }}>
-                <AdminSidebar open={sidebarOpen} setOpen={setSidebarOpen} />
-                <main
-                    style={{
-                        marginLeft: isMobile ? 0 : sidebarOpen ? 230 : 60,
-                        width: "100%",
-                        minHeight: "100vh",
-                        background: "#f7f8fa",
-                        transition: "margin-left 1s",
-                        paddingBottom: 32,
-                    }}
-                >
-                    <div
-                        style={{
-                            maxWidth: 900,
-                            margin: "40px auto",
-                            background: "#fff",
-                            borderRadius: 16,
-                            boxShadow: "0 2px 12px #2563eb11",
-                            padding: 32,
-                        }}
-                    >
-                        <h2
-                            style={{
-                                color: "#2563eb",
-                                fontWeight: 700,
-                                fontSize: 24,
-                                marginBottom: 24,
-                            }}
-                        >
-                            Listing User
-                        </h2>
-
-                        {/* Desktop Add Button */}
-                        <div
-                            style={{
-                                display: isMobile ? "none" : "block",
-                                marginBottom: 16,
-                            }}
-                        >
-                            <button
-                                onClick={() =>
-                                    setModal({
-                                        open: true,
-                                        mode: "add",
-                                        user: null,
-                                    })
-                                }
-                                style={{
-                                    ...btnStyle,
-                                    background: "#2563eb",
-                                    color: "#fff",
-                                    padding: "10px 20px",
-                                }}
-                            >
-                                + Tambah User
-                            </button>
-                        </div>
-                        {loading ? (
-                            <LoadingSpinner text="Memuat data user..." />
-                        ) : (
-                            <>
-                                {/* Mobile Card View */}
-                                <div
-                                    style={{
-                                        display: isMobile ? "block" : "none",
-                                    }}
-                                >
-                                    {users.length === 0 ? (
-                                        <div
-                                            style={{
-                                                textAlign: "center",
-                                                color: "#888",
-                                                padding: 28,
-                                            }}
-                                        >
-                                            Tidak ada data user
-                                        </div>
-                                    ) : (
-                                        <div
-                                            style={{
-                                                display: "flex",
-                                                flexDirection: "column",
-                                                gap: 12,
-                                            }}
-                                        >
-                                            {users.map((user, idx) => (
-                                                <div
-                                                    key={user._id || idx}
-                                                    style={{
-                                                        background: "#f8fafc",
-                                                        borderRadius: 12,
-                                                        padding: 16,
-                                                        border: "1px solid #e2e8f0",
-                                                        boxShadow:
-                                                            "0 2px 4px rgba(0,0,0,0.05)",
-                                                    }}
-                                                >
-                                                    <div
-                                                        style={{
-                                                            display: "flex",
-                                                            justifyContent:
-                                                                "space-between",
-                                                            alignItems:
-                                                                "flex-start",
-                                                            marginBottom: 12,
-                                                        }}
-                                                    >
-                                                        <div
-                                                            style={{ flex: 1 }}
-                                                        >
-                                                            <div
-                                                                style={{
-                                                                    fontWeight: 600,
-                                                                    color: "#2563eb",
-                                                                    fontSize: 16,
-                                                                    marginBottom: 4,
-                                                                }}
-                                                            >
-                                                                {user.name}
-                                                            </div>
-                                                            <div
-                                                                style={{
-                                                                    color: "#6b7280",
-                                                                    fontSize: 14,
-                                                                    marginBottom: 4,
-                                                                }}
-                                                            >
-                                                                {user.email}
-                                                            </div>
-                                                            <div
-                                                                style={{
-                                                                    display:
-                                                                        "flex",
-                                                                    alignItems:
-                                                                        "center",
-                                                                    gap: 8,
-                                                                    marginBottom: 8,
-                                                                }}
-                                                            >
-                                                                <span
-                                                                    style={{
-                                                                        background:
-                                                                            user.role ===
-                                                                            "admin"
-                                                                                ? "#2563eb"
-                                                                                : "#10b981",
-                                                                        color: "white",
-                                                                        padding:
-                                                                            "4px 8px",
-                                                                        borderRadius: 6,
-                                                                        fontSize: 12,
-                                                                        fontWeight: 600,
-                                                                        textTransform:
-                                                                            "capitalize",
-                                                                    }}
-                                                                >
-                                                                    {user.role ||
-                                                                        "user"}
-                                                                </span>
-                                                                <span
-                                                                    style={{
-                                                                        color: user.isActive
-                                                                            ? "#16a34a"
-                                                                            : "#ef4444",
-                                                                        fontWeight: 600,
-                                                                        fontSize: 12,
-                                                                    }}
-                                                                >
-                                                                    {user.isActive
-                                                                        ? "Aktif"
-                                                                        : "Nonaktif"}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        <div
-                                                            style={{
-                                                                width: 44,
-                                                                height: 24,
-                                                                borderRadius: 12,
-                                                                background:
-                                                                    user.isActive
-                                                                        ? "#16a34a"
-                                                                        : "#ef4444",
-                                                                position:
-                                                                    "relative",
-                                                                cursor: "pointer",
-                                                                transition:
-                                                                    "background 0.3s",
-                                                                display:
-                                                                    "inline-block",
-                                                                verticalAlign:
-                                                                    "middle",
-                                                            }}
-                                                            onClick={async () => {
-                                                                await fetch(
-                                                                    "/api/admin/users",
-                                                                    {
-                                                                        method: "PUT",
-                                                                        headers:
-                                                                            {
-                                                                                "Content-Type":
-                                                                                    "application/json",
-                                                                            },
-                                                                        body: JSON.stringify(
-                                                                            {
-                                                                                _id: user._id,
-                                                                                name: user.name,
-                                                                                email: user.email,
-                                                                                role: user.role,
-                                                                                isActive:
-                                                                                    !user.isActive,
-                                                                            }
-                                                                        ),
-                                                                    }
-                                                                )
-                                                                fetchUsers()
-                                                            }}
-                                                            title={
-                                                                user.isActive
-                                                                    ? "Nonaktifkan user"
-                                                                    : "Aktifkan user"
-                                                            }
-                                                        >
-                                                            <span
-                                                                style={{
-                                                                    position:
-                                                                        "absolute",
-                                                                    top: 3,
-                                                                    left: user.isActive
-                                                                        ? 23
-                                                                        : 3,
-                                                                    width: 18,
-                                                                    height: 18,
-                                                                    borderRadius:
-                                                                        "50%",
-                                                                    background:
-                                                                        "#fff",
-                                                                    boxShadow:
-                                                                        "0 1px 4px rgba(0,0,0,0.2)",
-                                                                    transition:
-                                                                        "left 0.3s",
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div
-                                                        style={{
-                                                            display: "flex",
-                                                            gap: 8,
-                                                        }}
-                                                    >
-                                                        <button
-                                                            onClick={() =>
-                                                                openEdit(user)
-                                                            }
-                                                            style={{
-                                                                ...btnStyle,
-                                                                background:
-                                                                    "#fbbf24",
-                                                                color: "#fff",
-                                                                flex: 1,
-                                                                padding:
-                                                                    "8px 12px",
-                                                                fontSize: 14,
-                                                            }}
-                                                        >
-                                                            Edit
-                                                        </button>
-                                                        <button
-                                                            onClick={() =>
-                                                                handleDelete(
-                                                                    user
-                                                                )
-                                                            }
-                                                            style={{
-                                                                ...btnStyle,
-                                                                background:
-                                                                    "#ef4444",
-                                                                color: "#fff",
-                                                                flex: 1,
-                                                                padding:
-                                                                    "8px 12px",
-                                                                fontSize: 14,
-                                                            }}
-                                                        >
-                                                            Hapus
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Desktop Table View */}
-                                <div
-                                    style={{
-                                        display: isMobile ? "none" : "block",
-                                    }}
-                                >
-                                    <table
-                                        style={{
-                                            width: "100%",
-                                            borderCollapse: "collapse",
-                                            background: "#fff",
-                                        }}
-                                    >
-                                        <thead>
-                                            <tr
-                                                style={{
-                                                    background: "#e0e7ff",
-                                                }}
-                                            >
-                                                <th style={thStyle}>Nama</th>
-                                                <th style={thStyle}>Email</th>
-                                                <th style={thStyle}>Role</th>
-                                                <th style={thStyle}>Status</th>
-                                                <th style={thStyle}>Aksi</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {users.length === 0 ? (
-                                                <tr>
-                                                    <td
-                                                        colSpan={4}
-                                                        style={{
-                                                            textAlign: "center",
-                                                            color: "#888",
-                                                            padding: 28,
-                                                        }}
-                                                    >
-                                                        Tidak ada data user
-                                                    </td>
-                                                </tr>
-                                            ) : (
-                                                users.map((user, idx) => (
-                                                    <tr
-                                                        key={user._id || idx}
-                                                        style={{
-                                                            background:
-                                                                idx % 2 === 0
-                                                                    ? "#fff"
-                                                                    : "#f9fafb",
-                                                        }}
-                                                    >
-                                                        <td style={tdStyle}>
-                                                            {user.name}
-                                                        </td>
-                                                        <td style={tdStyle}>
-                                                            {user.email}
-                                                        </td>
-                                                        <td style={tdStyle}>
-                                                            {user.role ||
-                                                                "user"}
-                                                        </td>
-                                                        <td style={tdStyle}>
-                                                            <span
-                                                                style={{
-                                                                    color: user.isActive
-                                                                        ? "#16a34a"
-                                                                        : "#ef4444",
-                                                                    fontWeight: 600,
-                                                                    marginRight: 8,
-                                                                }}
-                                                            >
-                                                                {user.isActive
-                                                                    ? "Aktif"
-                                                                    : "Nonaktif"}
-                                                            </span>
-                                                            <span
-                                                                className={`toggle-switch${
-                                                                    user.isActive
-                                                                        ? " active"
-                                                                        : ""
-                                                                }`}
-                                                                onClick={async () => {
-                                                                    await fetch(
-                                                                        "/api/admin/users",
-                                                                        {
-                                                                            method: "PUT",
-                                                                            headers:
-                                                                                {
-                                                                                    "Content-Type":
-                                                                                        "application/json",
-                                                                                },
-                                                                            body: JSON.stringify(
-                                                                                {
-                                                                                    _id: user._id,
-                                                                                    name: user.name,
-                                                                                    email: user.email,
-                                                                                    role: user.role,
-                                                                                    isActive:
-                                                                                        !user.isActive,
-                                                                                }
-                                                                            ),
-                                                                        }
-                                                                    )
-                                                                    fetchUsers()
-                                                                }}
-                                                                title={
-                                                                    user.isActive
-                                                                        ? "Nonaktifkan user"
-                                                                        : "Aktifkan user"
-                                                                }
-                                                                style={{
-                                                                    marginLeft: 2,
-                                                                }}
-                                                            >
-                                                                <span className="toggle-knob" />
-                                                            </span>
-                                                        </td>
-                                                        <td style={tdStyle}>
-                                                            <button
-                                                                onClick={() =>
-                                                                    openEdit(
-                                                                        user
-                                                                    )
-                                                                }
-                                                                style={{
-                                                                    ...btnStyle,
-                                                                    background:
-                                                                        "#fbbf24",
-                                                                    color: "#fff",
-                                                                }}
-                                                            >
-                                                                Edit
-                                                            </button>
-                                                            <button
-                                                                onClick={() =>
-                                                                    handleDelete(
-                                                                        user
-                                                                    )
-                                                                }
-                                                                style={{
-                                                                    ...btnStyle,
-                                                                    background:
-                                                                        "#ef4444",
-                                                                    color: "#fff",
-                                                                    marginLeft: 8,
-                                                                }}
-                                                            >
-                                                                Hapus
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </>
-                        )}
-                        {/* Modal */}
-                        {modal.open && (
-                            <div
-                                style={{
-                                    position: "fixed",
-                                    top: 0,
-                                    left: 0,
-                                    width: "100vw",
-                                    height: "100vh",
-                                    background: "#0008",
-                                    zIndex: 1000,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                }}
-                            >
-                                <form
-                                    onSubmit={handleSubmit}
-                                    style={{
-                                        background: "#fff",
-                                        borderRadius: 12,
-                                        padding: 32,
-                                        minWidth: 340,
-                                        boxShadow: "0 2px 12px #2563eb33",
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 16,
-                                    }}
-                                >
-                                    <h3
-                                        style={{
-                                            color: "#2563eb",
-                                            fontWeight: 700,
-                                            fontSize: 20,
-                                            marginBottom: 8,
-                                        }}
-                                    >
-                                        {modal.mode === "add"
-                                            ? "Tambah User"
-                                            : "Edit User"}
-                                    </h3>
-                                    <input
-                                        type="text"
-                                        placeholder="Nama"
-                                        value={form.name}
-                                        onChange={(e) =>
-                                            setForm((f) => ({
-                                                ...f,
-                                                name: e.target.value,
-                                            }))
-                                        }
-                                        style={inputStyle}
-                                    />
-                                    <input
-                                        type="email"
-                                        placeholder="Email"
-                                        value={form.email}
-                                        onChange={(e) =>
-                                            setForm((f) => ({
-                                                ...f,
-                                                email: e.target.value,
-                                            }))
-                                        }
-                                        style={inputStyle}
-                                    />
-                                    <select
-                                        value={form.role}
-                                        onChange={(e) =>
-                                            setForm((f) => ({
-                                                ...f,
-                                                role: e.target.value,
-                                            }))
-                                        }
-                                        style={inputStyle}
-                                    >
-                                        <option value="user">User</option>
-                                        <option value="admin">Admin</option>
-                                    </select>
-                                    <input
-                                        type="password"
-                                        placeholder="Password baru (opsional)"
-                                        value={form.password || ""}
-                                        onChange={(e) =>
-                                            setForm((f) => ({
-                                                ...f,
-                                                password: e.target.value,
-                                            }))
-                                        }
-                                        style={inputStyle}
-                                    />
-                                    <div
-                                        style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 10,
-                                        }}
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            id="isActive"
-                                            checked={form.isActive}
-                                            onChange={(e) =>
-                                                setForm((f) => ({
-                                                    ...f,
-                                                    isActive: e.target.checked,
-                                                }))
-                                            }
-                                            style={{ width: 18, height: 18 }}
-                                        />
-                                        <label
-                                            htmlFor="isActive"
-                                            style={{
-                                                color: form.isActive
-                                                    ? "#16a34a"
-                                                    : "#ef4444",
-                                                fontWeight: 600,
-                                            }}
-                                        >
-                                            {form.isActive
-                                                ? "Aktif"
-                                                : "Nonaktif"}
-                                        </label>
-                                    </div>
-                                    {error && (
-                                        <div
-                                            style={{
-                                                color: "#ef4444",
-                                                fontWeight: 500,
-                                            }}
-                                        >
-                                            {error}
-                                        </div>
-                                    )}
-                                    <div
-                                        style={{
-                                            display: "flex",
-                                            gap: 12,
-                                            marginTop: 8,
-                                        }}
-                                    >
-                                        <button
-                                            type="submit"
-                                            style={{
-                                                ...btnStyle,
-                                                background: "#2563eb",
-                                                color: "#fff",
-                                            }}
-                                        >
-                                            {modal.mode === "add"
-                                                ? "Tambah"
-                                                : "Simpan"}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={closeModal}
-                                            style={{
-                                                ...btnStyle,
-                                                background: "#888",
-                                                color: "#fff",
-                                            }}
-                                        >
-                                            Batal
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        )}
+        <div className="p-8">
+            <div className="max-w-7xl mx-auto">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-8">
+                    <div>
+                        <h1 className="text-3xl font-bold text-slate-900 mb-2">
+                            User Management
+                        </h1>
+                        <p className="text-slate-600">
+                            Kelola pengguna dan status akun mereka
+                        </p>
                     </div>
-                </main>
-
-                {/* Mobile Floating Action Button */}
-                {isMobile && (
                     <button
                         onClick={() =>
-                            setModal({ open: true, mode: "add", user: null })
+                            setUserModal({
+                                open: true,
+                                mode: "create",
+                                user: null,
+                            })
                         }
-                        style={{
-                            position: "fixed",
-                            bottom: 20,
-                            right: 20,
-                            width: 56,
-                            height: 56,
-                            borderRadius: "50%",
-                            background: "#2563eb",
-                            color: "#fff",
-                            border: "none",
-                            fontSize: 24,
-                            fontWeight: "bold",
-                            boxShadow: "0 4px 12px rgba(37, 99, 235, 0.4)",
-                            cursor: "pointer",
-                            zIndex: 1000,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            transition: "all 0.2s ease",
-                        }}
-                        onMouseEnter={(e) => {
-                            e.target.style.transform = "scale(1.1)"
-                            e.target.style.boxShadow =
-                                "0 6px 16px rgba(37, 99, 235, 0.5)"
-                        }}
-                        onMouseLeave={(e) => {
-                            e.target.style.transform = "scale(1)"
-                            e.target.style.boxShadow =
-                                "0 4px 12px rgba(37, 99, 235, 0.4)"
-                        }}
-                        title="Tambah User"
+                        className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
                     >
-                        +
+                        Add New User
                     </button>
+                </div>
+
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-slate-600">
+                                    Total Users
+                                </p>
+                                <p className="text-2xl font-bold text-slate-900">
+                                    {loading ? "..." : stats.total}
+                                </p>
+                            </div>
+                            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                                <svg
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    className="text-blue-600"
+                                >
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                    <circle cx="9" cy="7" r="4" />
+                                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-slate-600">
+                                    Active Users
+                                </p>
+                                <p className="text-2xl font-bold text-green-600">
+                                    {loading ? "..." : stats.active}
+                                </p>
+                            </div>
+                            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                                <svg
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    className="text-green-600"
+                                >
+                                    <path d="M9 12l2 2 4-4" />
+                                    <circle cx="12" cy="12" r="10" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-slate-600">
+                                    Inactive Users
+                                </p>
+                                <p className="text-2xl font-bold text-red-600">
+                                    {loading ? "..." : stats.inactive}
+                                </p>
+                            </div>
+                            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                                <svg
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    className="text-red-600"
+                                >
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="15" y1="9" x2="9" y2="15" />
+                                    <line x1="9" y1="9" x2="15" y2="15" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-slate-600">
+                                    Admins
+                                </p>
+                                <p className="text-2xl font-bold text-purple-600">
+                                    {loading ? "..." : stats.admins}
+                                </p>
+                            </div>
+                            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                                <svg
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    className="text-purple-600"
+                                >
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Filters and Actions */}
+                <div className="mb-6">
+                    <div className="flex flex-col lg:flex-row gap-4">
+                        <div className="flex-1">
+                            <input
+                                type="text"
+                                placeholder="Cari berdasarkan nama atau email..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        </div>
+                        <div className="flex gap-4">
+                            <select
+                                value={roleFilter}
+                                onChange={(e) => setRoleFilter(e.target.value)}
+                                className="px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="all">All Roles</option>
+                                <option value="user">User</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) =>
+                                    setStatusFilter(e.target.value)
+                                }
+                                className="px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="all">All Status</option>
+                                <option value="aktif">Active</option>
+                                <option value="nonaktif">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Bulk Actions */}
+                    {selectedUsers.length > 0 && (
+                        <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm font-medium text-blue-900">
+                                    {selectedUsers.length} users selected
+                                </span>
+                                <select
+                                    value={bulkAction}
+                                    onChange={(e) =>
+                                        setBulkAction(e.target.value)
+                                    }
+                                    className="px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">Choose action...</option>
+                                    <option value="activate">
+                                        Activate Selected
+                                    </option>
+                                    <option value="deactivate">
+                                        Deactivate Selected
+                                    </option>
+                                    <option value="makeAdmin">
+                                        Make Admin
+                                    </option>
+                                    <option value="makeUser">Make User</option>
+                                    <option value="delete">
+                                        Delete Selected
+                                    </option>
+                                </select>
+                                <button
+                                    onClick={handleBulkAction}
+                                    disabled={!bulkAction}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Apply Action
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Users Table */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="text-left py-4 px-6">
+                                        <input
+                                            type="checkbox"
+                                            checked={
+                                                selectedUsers.length ===
+                                                    pagedUsers.length &&
+                                                pagedUsers.length > 0
+                                            }
+                                            onChange={selectAllUsers}
+                                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                    </th>
+                                    <th className="text-left py-4 px-6 font-semibold text-slate-700">
+                                        Name
+                                    </th>
+                                    <th className="text-left py-4 px-6 font-semibold text-slate-700">
+                                        Email
+                                    </th>
+                                    <th className="text-left py-4 px-6 font-semibold text-slate-700">
+                                        Role
+                                    </th>
+                                    <th className="text-left py-4 px-6 font-semibold text-slate-700">
+                                        Status
+                                    </th>
+                                    <th className="text-left py-4 px-6 font-semibold text-slate-700">
+                                        Created At
+                                    </th>
+                                    <th className="text-left py-4 px-6 font-semibold text-slate-700">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {loading ? (
+                                    <tr>
+                                        <td
+                                            colSpan="7"
+                                            className="py-12 text-center"
+                                        >
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                                        </td>
+                                    </tr>
+                                ) : pagedUsers.length === 0 ? (
+                                    <tr>
+                                        <td
+                                            colSpan="7"
+                                            className="py-12 text-center text-slate-500"
+                                        >
+                                            No users found
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    pagedUsers.map((user) => (
+                                        <tr
+                                            key={user.id}
+                                            className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                                        >
+                                            <td className="py-4 px-6">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedUsers.includes(
+                                                        user.id
+                                                    )}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setSelectedUsers([
+                                                                ...selectedUsers,
+                                                                user.id,
+                                                            ])
+                                                        } else {
+                                                            setSelectedUsers(
+                                                                selectedUsers.filter(
+                                                                    (id) =>
+                                                                        id !==
+                                                                        user.id
+                                                                )
+                                                            )
+                                                        }
+                                                    }}
+                                                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold">
+                                                        {user.name?.[0] || "U"}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-semibold text-slate-900">
+                                                            {user.name}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-6 text-slate-700">
+                                                {user.email}
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                <span
+                                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                                        user.role === "admin"
+                                                            ? "bg-purple-100 text-purple-700"
+                                                            : "bg-blue-100 text-blue-700"
+                                                    }`}
+                                                >
+                                                    {user.role || "user"}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                <span
+                                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                                        user.status === "aktif"
+                                                            ? "bg-green-100 text-green-700"
+                                                            : "bg-red-100 text-red-700"
+                                                    }`}
+                                                >
+                                                    {user.status}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-6 text-slate-600 text-sm">
+                                                {new Date(
+                                                    user.createdAt
+                                                ).toLocaleDateString("id-ID")}
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                <div className="flex gap-1">
+                                                    {/* Edit */}
+                                                    <button
+                                                        onClick={() =>
+                                                            setUserModal({
+                                                                open: true,
+                                                                mode: "edit",
+                                                                user,
+                                                            })
+                                                        }
+                                                        className="p-2 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                                                        title="Edit User"
+                                                    >
+                                                        <svg
+                                                            width="16"
+                                                            height="16"
+                                                            viewBox="0 0 24 24"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            strokeWidth="2"
+                                                        >
+                                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                                        </svg>
+                                                    </button>
+
+                                                    {/* Toggle Status */}
+                                                    <button
+                                                        onClick={() =>
+                                                            updateUserStatus(
+                                                                user.id,
+                                                                user.status ===
+                                                                    "aktif"
+                                                                    ? "nonaktif"
+                                                                    : "aktif"
+                                                            )
+                                                        }
+                                                        className={`p-2 rounded-lg transition-colors ${
+                                                            user.status ===
+                                                            "aktif"
+                                                                ? "bg-red-100 text-red-700 hover:bg-red-200"
+                                                                : "bg-green-100 text-green-700 hover:bg-green-200"
+                                                        }`}
+                                                        title={
+                                                            user.status ===
+                                                            "aktif"
+                                                                ? "Deactivate"
+                                                                : "Activate"
+                                                        }
+                                                    >
+                                                        {user.status ===
+                                                        "aktif" ? (
+                                                            <svg
+                                                                width="16"
+                                                                height="16"
+                                                                viewBox="0 0 24 24"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                strokeWidth="2"
+                                                            >
+                                                                <circle
+                                                                    cx="12"
+                                                                    cy="12"
+                                                                    r="10"
+                                                                />
+                                                                <line
+                                                                    x1="15"
+                                                                    y1="9"
+                                                                    x2="9"
+                                                                    y2="15"
+                                                                />
+                                                                <line
+                                                                    x1="9"
+                                                                    y1="9"
+                                                                    x2="15"
+                                                                    y2="15"
+                                                                />
+                                                            </svg>
+                                                        ) : (
+                                                            <svg
+                                                                width="16"
+                                                                height="16"
+                                                                viewBox="0 0 24 24"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                strokeWidth="2"
+                                                            >
+                                                                <path d="M9 12l2 2 4-4" />
+                                                                <circle
+                                                                    cx="12"
+                                                                    cy="12"
+                                                                    r="10"
+                                                                />
+                                                            </svg>
+                                                        )}
+                                                    </button>
+
+                                                    {/* Delete */}
+                                                    <button
+                                                        onClick={() =>
+                                                            deleteUser(user.id)
+                                                        }
+                                                        className="p-2 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                                                        title="Delete User"
+                                                    >
+                                                        <svg
+                                                            width="16"
+                                                            height="16"
+                                                            viewBox="0 0 24 24"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            strokeWidth="2"
+                                                        >
+                                                            <polyline points="3,6 5,6 21,6" />
+                                                            <path d="M19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2" />
+                                                            <line
+                                                                x1="10"
+                                                                y1="11"
+                                                                x2="10"
+                                                                y2="17"
+                                                            />
+                                                            <line
+                                                                x1="14"
+                                                                y1="11"
+                                                                x2="14"
+                                                                y2="17"
+                                                            />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Pagination */}
+                    {!loading && filteredUsers.length > 0 && (
+                        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50">
+                            <div className="flex items-center justify-between">
+                                <div className="text-sm text-slate-600">
+                                    Showing {(page - 1) * pageSize + 1} to{" "}
+                                    {Math.min(
+                                        page * pageSize,
+                                        filteredUsers.length
+                                    )}{" "}
+                                    of {filteredUsers.length} users
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() =>
+                                            setPage((prev) =>
+                                                Math.max(prev - 1, 1)
+                                            )
+                                        }
+                                        disabled={page === 1}
+                                        className="px-4 py-2 rounded-lg text-sm border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        Previous
+                                    </button>
+                                    <span className="px-4 py-2 text-sm text-slate-600">
+                                        Page {page} of {totalPages}
+                                    </span>
+                                    <button
+                                        onClick={() =>
+                                            setPage((prev) =>
+                                                Math.min(prev + 1, totalPages)
+                                            )
+                                        }
+                                        disabled={page === totalPages}
+                                        className="px-4 py-2 rounded-lg text-sm border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* User Modal */}
+                {userModal.open && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+                            <h2 className="text-xl font-bold text-slate-900 mb-4">
+                                {userModal.mode === "create"
+                                    ? "Create New User"
+                                    : "Edit User"}
+                            </h2>
+                            <form
+                                onSubmit={(e) => {
+                                    e.preventDefault()
+                                    const formData = new FormData(e.target)
+                                    const userData = {
+                                        name: formData.get("name"),
+                                        email: formData.get("email"),
+                                        role: formData.get("role"),
+                                        status: formData.get("status"),
+                                    }
+
+                                    if (userModal.mode === "create") {
+                                        userData.password =
+                                            formData.get("password")
+                                        createUser(userData)
+                                    } else {
+                                        userData.id = userModal.user.id
+                                        updateUser(userData)
+                                    }
+                                }}
+                            >
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                                            Name
+                                        </label>
+                                        <input
+                                            name="name"
+                                            type="text"
+                                            defaultValue={
+                                                userModal.user?.name || ""
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                                            Email
+                                        </label>
+                                        <input
+                                            name="email"
+                                            type="email"
+                                            defaultValue={
+                                                userModal.user?.email || ""
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            required
+                                        />
+                                    </div>
+                                    {userModal.mode === "create" && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                                Password
+                                            </label>
+                                            <input
+                                                name="password"
+                                                type="password"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                required
+                                                minLength="6"
+                                            />
+                                        </div>
+                                    )}
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                                            Role
+                                        </label>
+                                        <select
+                                            name="role"
+                                            defaultValue={
+                                                userModal.user?.role || "user"
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="user">User</option>
+                                            <option value="admin">Admin</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                                            Status
+                                        </label>
+                                        <select
+                                            name="status"
+                                            defaultValue={
+                                                userModal.user?.status ||
+                                                "aktif"
+                                            }
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="aktif">
+                                                Active
+                                            </option>
+                                            <option value="nonaktif">
+                                                Inactive
+                                            </option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div className="flex gap-3 mt-6">
+                                    <button
+                                        type="submit"
+                                        className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                                    >
+                                        {userModal.mode === "create"
+                                            ? "Create User"
+                                            : "Save Changes"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setUserModal({
+                                                open: false,
+                                                mode: "create",
+                                                user: null,
+                                            })
+                                        }
+                                        className="flex-1 bg-slate-300 text-slate-700 py-2 px-4 rounded-lg hover:bg-slate-400 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 )}
             </div>
-            <style>{`
-                @media (max-width: 900px) {
-                    main { margin-left: 60px !important; }
-                }
-                @media (max-width: 768px) {
-                    main { margin-left: 0 !important; padding: 0 2vw !important; }
-                    .sidebar { width: 0 !important; }
-                    table { font-size: 13px !important; }
-                    th, td { padding: 8px !important; }
-                    
-                    /* Mobile card styling */
-                    main > div {
-                        margin: 20px auto !important;
-                        padding: 16px !important;
-                    }
-                }
-                @media (max-width: 500px) {
-                    main { padding: 0 1vw !important; }
-                    h1, h3 { font-size: 17px !important; }
-                    
-                    /* Card styling for very small screens */
-                    main > div {
-                        margin: 12px auto !important;
-                        padding: 12px !important;
-                    }
-                    
-                    /* Modal styling for mobile */
-                    form {
-                        min-width: 280px !important;
-                        padding: 20px !important;
-                        margin: 10px !important;
-                    }
-                }
-                input::placeholder, select::placeholder {
-                    color: #000 !important;
-                    opacity: 1 !important;
-                }
-                input, select {
-                    color: #222 !important;
-                    border: 1.5px solid #c7d2fe !important;
-                    border-radius: 6px !important;
-                    padding: 10px 12px !important;
-                    font-size: 15px !important;
-                    font-weight: 500 !important;
-                }
-                .toggle-switch {
-                    width: 44px;
-                    height: 24px;
-                    border-radius: 12px;
-                    background: #ef4444;
-                    position: relative;
-                    cursor: pointer;
-                    transition: background 0.3s;
-                    display: inline-block;
-                    vertical-align: middle;
-                }
-                .toggle-switch.active {
-                    background: #16a34a;
-                }
-                .toggle-knob {
-                    position: absolute;
-                    top: 3px;
-                    left: 3px;
-                    width: 18px;
-                    height: 18px;
-                    border-radius: 50%;
-                    background: #fff;
-                    box-shadow: 0 1px 4px #0002;
-                    transition: left 0.3s;
-                }
-                .toggle-switch.active .toggle-knob {
-                    left: 23px;
-                }
-            `}</style>
-        </>
+        </div>
     )
-}
-
-const thStyle = {
-    padding: 14,
-    border: "1.5px solid #c7d2fe",
-    fontWeight: 800,
-    color: "#1e3a8a",
-    textAlign: "left",
-    letterSpacing: 0.5,
-}
-const tdStyle = {
-    padding: 14,
-    border: "1.5px solid #c7d2fe",
-    color: "#222",
-    fontWeight: 500,
-}
-const btnStyle = {
-    border: "none",
-    borderRadius: 6,
-    padding: "7px 16px",
-    fontWeight: 600,
-    fontSize: 15,
-    cursor: "pointer",
-}
-const inputStyle = {
-    padding: "10px 12px",
-    borderRadius: 6,
-    border: "1.5px solid #c7d2fe",
-    fontSize: 15,
-    fontWeight: 500,
-    color: "#222",
-    "::placeholder": {
-        color: "#000",
-        opacity: 1,
-    },
 }

@@ -1,574 +1,499 @@
 "use client"
 import { useEffect, useState } from "react"
-import { useSession, signOut } from "next-auth/react"
+import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import Navbar, { Footer } from "../components/Navbar"
-import LoadingSpinner from "../components/LoadingSpinner"
-import { useNotification } from "../components/NotificationToast"
-import { Bar } from "react-chartjs-2"
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend,
-} from "chart.js"
-import dayjs from "dayjs"
-import "dayjs/locale/id"
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
-
-const statusLabel = {
-    lunas: "Lunas",
-    belum_lunas: "Belum Lunas",
-    proses: "Proses",
-}
+import Link from "next/link"
 
 export default function DashboardPage() {
     const { data: session, status } = useSession()
-    const { addNotification } = useNotification()
     const router = useRouter()
-    const [form, setForm] = useState({
-        name: "",
-        address: "",
-        total: "",
-        year: "",
+    const [stats, setStats] = useState({
+        totalData: 0,
+        totalPajak: 0,
+        dataThisMonth: 0,
+        recentData: [],
     })
-    const [error, setError] = useState("")
-    const [success, setSuccess] = useState("")
-    const [taxes, setTaxes] = useState([])
-    const [loading, setLoading] = useState(false)
-    const [now, setNow] = useState(() =>
-        dayjs().locale("id").format("dddd, D MMMM YYYY • HH:mm:ss [WIB]")
-    )
+    const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        if (status === "unauthenticated") router.push("/login")
-        if (status === "authenticated" && session?.user?.id) {
-            fetchTaxes()
+        if (status === "unauthenticated") {
+            router.push("/login")
         }
-        const interval = setInterval(() => {
-            setNow(
-                dayjs()
-                    .locale("id")
-                    .format("dddd, D MMMM YYYY • HH:mm:ss [WIB]")
-            )
-        }, 1000)
-        return () => clearInterval(interval)
-        // eslint-disable-next-line
+    }, [status, router])
+
+    useEffect(() => {
+        if (status === "authenticated") {
+            // Add small delay to prioritize login completion
+            const timer = setTimeout(() => {
+                fetchDashboardData()
+            }, 100)
+            return () => clearTimeout(timer)
+        }
     }, [status])
 
-    async function fetchTaxes() {
-        setLoading(true)
+    const fetchDashboardData = async () => {
         try {
-            const res = await fetch(`/api/tax?userId=${session.user.id}`)
-            const data = await res.json()
-            setTaxes(Array.isArray(data) ? data : [])
+            const response = await fetch("/api/dashboard", {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            })
 
-            // Notifikasi sukses saat data berhasil dimuat
-            if (Array.isArray(data)) {
-                addNotification(
-                    `Berhasil memuat ${data.length} data pajak`,
-                    "success"
-                )
+            if (response.ok) {
+                const data = await response.json()
+                setStats(data)
+            } else {
+                console.error("Dashboard API error:", response.status)
+                // Set default stats on error
+                setStats({
+                    totalData: 0,
+                    totalPajak: 0,
+                    dataThisMonth: 0,
+                    recentData: [],
+                })
             }
         } catch (error) {
-            addNotification("Gagal memuat data pajak", "error")
-            console.error("Error fetching taxes:", error)
+            console.error("Error fetching dashboard data:", error)
+            // Set default stats on error
+            setStats({
+                totalData: 0,
+                totalPajak: 0,
+                dataThisMonth: 0,
+                recentData: [],
+            })
         } finally {
             setLoading(false)
         }
     }
 
-    async function handleSubmit(e) {
-        e.preventDefault()
-        setError("")
-        setSuccess("")
-
-        // Validasi form
-        if (!form.name.trim()) {
-            addNotification("Nama wajib diisi", "error")
-            return
-        }
-        if (!form.address.trim()) {
-            addNotification("Alamat wajib diisi", "error")
-            return
-        }
-        if (!form.total || parseFloat(form.total) <= 0) {
-            addNotification("Total pajak harus lebih dari 0", "error")
-            return
-        }
-        if (!form.year || parseInt(form.year) < 2000) {
-            addNotification("Tahun pajak tidak valid", "error")
-            return
-        }
-
-        try {
-            const res = await fetch("/api/tax", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...form, userId: session.user.id }),
-            })
-            const data = await res.json()
-
-            if (!res.ok) {
-                addNotification(
-                    data.error || "Gagal menambah data pajak",
-                    "error"
-                )
-                setError(data.error || "Gagal menambah data")
-            } else {
-                addNotification("Data pajak berhasil ditambahkan!", "success")
-                setSuccess("Data pajak berhasil ditambah")
-                setForm({ name: "", address: "", total: "", year: "" })
-                fetchTaxes()
-            }
-        } catch (error) {
-            addNotification("Terjadi kesalahan jaringan", "error")
-            setError("Gagal menambah data")
-        }
-    }
-
-    if (status === "loading")
+    if (status === "loading") {
         return (
-            <div className="min-h-screen flex flex-col bg-gray-50">
-                <Navbar />
-                <div className="flex-grow flex items-center justify-center">
-                    <LoadingSpinner text="Memuat data sesi..." />
-                </div>
-                <Footer />
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
         )
-
-    // Greeting
-    function getGreeting() {
-        const hour = new Date().getHours()
-        if (hour < 11) return "Selamat Pagi!"
-        if (hour < 15) return "Selamat Siang!"
-        if (hour < 18) return "Selamat Sore!"
-        return "Selamat Malam!"
-    }
-    const greeting = getGreeting()
-    const userName = session?.user?.name || session?.user?.email || "User"
-
-    // Ringkasan
-    const totalPajak = taxes.reduce((sum, t) => sum + (Number(t.total) || 0), 0)
-    const pajakLunas = taxes
-        .filter((t) => t.status === "lunas")
-        .reduce((sum, t) => sum + (Number(t.total) || 0), 0)
-    const pajakTunggakan = taxes
-        .filter((t) => t.status === "belum_lunas")
-        .reduce((sum, t) => sum + (Number(t.total) || 0), 0)
-    const persenLunas = totalPajak ? (pajakLunas / totalPajak) * 100 : 0
-    const persenTunggakan = totalPajak ? (pajakTunggakan / totalPajak) * 100 : 0
-    const countLunas = taxes.filter((t) => t.status === "lunas").length
-    const countBelum = taxes.filter((t) => t.status === "belum_lunas").length
-    const countProses = taxes.filter((t) => t.status === "proses").length
-
-    // Statistik per tahun untuk masing-masing status
-    const statsLunas = {}
-    const statsBelumLunas = {}
-    const statsProses = {}
-    taxes.forEach((t) => {
-        const year = t.year
-        const total = Number(t.total) || 0
-        if (t.status === "lunas") {
-            statsLunas[year] = (statsLunas[year] || 0) + total
-        }
-        if (t.status === "belum_lunas") {
-            statsBelumLunas[year] = (statsBelumLunas[year] || 0) + total
-        }
-        if (t.status === "proses") {
-            statsProses[year] = (statsProses[year] || 0) + total
-        }
-    })
-    // Gabungkan semua tahun yang ada
-    const tahunGabungan = Array.from(
-        new Set([
-            ...Object.keys(statsLunas),
-            ...Object.keys(statsBelumLunas),
-            ...Object.keys(statsProses),
-        ])
-    ).sort()
-
-    // Data untuk grafik
-    const taxesByYear = taxes.reduce((acc, t) => {
-        const year = t.year
-        const total = Number(t.total) || 0
-        acc[year] = (acc[year] || 0) + total
-        return acc
-    }, {})
-    const years = Object.keys(taxesByYear).sort()
-    const totals = years.map((y) => taxesByYear[y])
-
-    // Persentase pembayaran tahun terakhir dibanding sebelumnya
-    let percent = null
-    if (years.length > 1) {
-        const last = totals[totals.length - 1]
-        const prev = totals[totals.length - 2]
-        percent = prev === 0 ? 100 : ((last - prev) / prev) * 100
     }
 
-    // Data recent (5 terbaru)
-    const recentTaxes = [...taxes].sort((a, b) => b.id - a.id).slice(0, 5)
+    if (status === "unauthenticated") {
+        return null
+    }
 
     return (
-        <div className="min-h-screen flex flex-col bg-gray-50">
-            <Navbar />
-            <div className="flex-grow p-4">
-                <div className="max-w-6xl mx-auto">
-                    {/* Greeting & User */}
-                    <div className="bg-gradient-to-r from-blue-700 to-blue-500 rounded-2xl shadow p-6 mb-6 flex flex-col md:flex-row md:items-center md:justify-between text-white">
-                        <div>
-                            <div className="text-2xl font-bold mb-1">
-                                {greeting}
+        <div className="p-8">
+            <div className="max-w-7xl mx-auto">
+                {/* Header */}
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-slate-900 mb-2">
+                        Welcome back, {session?.user?.name || "User"}!
+                    </h1>
+                    <p className="text-slate-600">
+                        Here's what's happening with your tax data today.
+                    </p>
+                </div>
+
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-slate-600">
+                                    Total Data
+                                </p>
+                                <p className="text-2xl font-bold text-slate-900">
+                                    {loading ? "..." : stats.totalData}
+                                </p>
                             </div>
-                            <div className="font-semibold text-lg mb-1">
-                                {userName}
-                            </div>
-                            <div className="text-sm opacity-80">{now}</div>
-                        </div>
-                        <div className="flex items-center gap-4 mt-4 md:mt-0">
-                            <div className="bg-white/20 rounded-full p-3">
+                            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                                 <svg
-                                    width="32"
-                                    height="32"
-                                    fill="none"
+                                    width="24"
+                                    height="24"
                                     viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    className="text-blue-600"
                                 >
-                                    <path
-                                        fill="#fff"
-                                        d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 3a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm0 14.2a7.2 7.2 0 0 1-6-3.2c.03-2 4-3.1 6-3.1 2 0 5.97 1.1 6 3.1a7.2 7.2 0 0 1-6 3.2Z"
-                                    />
+                                    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
                                 </svg>
                             </div>
                         </div>
                     </div>
-                    {/* Ringkasan */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                        <div className="bg-white rounded-xl shadow p-6 flex flex-col gap-2 border">
-                            <div className="text-gray-500 font-medium">
-                                Total Pajak
+
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-slate-600">
+                                    Total Pajak
+                                </p>
+                                <p className="text-2xl font-bold text-slate-900">
+                                    {loading
+                                        ? "..."
+                                        : `Rp ${stats.totalPajak.toLocaleString(
+                                              "id-ID"
+                                          )}`}
+                                </p>
                             </div>
-                            <div className="text-2xl font-bold text-blue-700">
-                                Rp {totalPajak.toLocaleString("id-ID")}
-                            </div>
-                            <div className="text-xs text-gray-400">
-                                {taxes.length} Data
-                            </div>
-                        </div>
-                        <div className="bg-white rounded-xl shadow p-6 flex flex-col gap-2 border">
-                            <div className="text-gray-500 font-medium flex items-center gap-2">
-                                Pajak Lunas{" "}
-                                <span className="text-green-600">
-                                    <svg
-                                        width="18"
-                                        height="18"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <circle
-                                            cx="12"
-                                            cy="12"
-                                            r="10"
-                                            fill="#dcfce7"
-                                        />
-                                        <path
-                                            d="M8 12l2 2 4-4"
-                                            stroke="#22c55e"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                        />
-                                    </svg>
-                                </span>
-                            </div>
-                            <div className="text-2xl font-bold text-green-600">
-                                Rp {pajakLunas.toLocaleString("id-ID")}
-                            </div>
-                            <div className="text-xs text-gray-400">
-                                {persenLunas.toFixed(2)}% dari total
-                            </div>
-                        </div>
-                        <div className="bg-white rounded-xl shadow p-6 flex flex-col gap-2 border">
-                            <div className="text-gray-500 font-medium flex items-center gap-2">
-                                Tunggakan{" "}
-                                <span className="text-red-600">
-                                    <svg
-                                        width="18"
-                                        height="18"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <circle
-                                            cx="12"
-                                            cy="12"
-                                            r="10"
-                                            fill="#fee2e2"
-                                        />
-                                        <path
-                                            d="M15 9l-6 6M9 9l6 6"
-                                            stroke="#ef4444"
-                                            strokeWidth="2"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                        />
-                                    </svg>
-                                </span>
-                            </div>
-                            <div className="text-2xl font-bold text-red-600">
-                                Rp {pajakTunggakan.toLocaleString("id-ID")}
-                            </div>
-                            <div className="text-xs text-gray-400">
-                                {persenTunggakan.toFixed(2)}% dari total
-                            </div>
-                        </div>
-                    </div>
-                    {/* Statistik per Tahun (Grouped Bar Chart) */}
-                    <div className="bg-white rounded-xl shadow p-6 mb-8 border">
-                        <div className="text-lg font-semibold mb-4 text-black">
-                            Statistik Pajak per Tahun
-                        </div>
-                        {tahunGabungan.length === 0 ? (
-                            <div className="text-gray-500 text-center py-8">
-                                Belum ada data
-                            </div>
-                        ) : (
-                            <div
-                                style={{ maxHeight: 350, overflow: "auto" }}
-                                className="w-full"
-                            >
-                                <Bar
-                                    data={{
-                                        labels: tahunGabungan,
-                                        datasets: [
-                                            {
-                                                label: "Lunas",
-                                                data: tahunGabungan.map(
-                                                    (th) => statsLunas[th] || 0
-                                                ),
-                                                backgroundColor: "#22c55e",
-                                            },
-                                            {
-                                                label: "Belum Lunas",
-                                                data: tahunGabungan.map(
-                                                    (th) =>
-                                                        statsBelumLunas[th] || 0
-                                                ),
-                                                backgroundColor: "#ef4444",
-                                            },
-                                            {
-                                                label: "Proses",
-                                                data: tahunGabungan.map(
-                                                    (th) => statsProses[th] || 0
-                                                ),
-                                                backgroundColor: "#eab308",
-                                            },
-                                        ],
-                                    }}
-                                    options={{
-                                        responsive: true,
-                                        maintainAspectRatio: false,
-                                        plugins: {
-                                            legend: { position: "top" },
-                                            title: { display: false },
-                                        },
-                                        scales: {
-                                            x: { stacked: false },
-                                            y: { beginAtZero: true },
-                                        },
-                                    }}
-                                    height={350}
-                                />
-                            </div>
-                        )}
-                    </div>
-                    {/* Recent Data Pajak */}
-                    <div className="bg-white rounded-xl shadow p-6 mb-8 border">
-                        <div className="text-lg font-semibold mb-4 text-black">
-                            Data Pajak Terbaru
-                        </div>
-                        {recentTaxes.length === 0 ? (
-                            <div className="flex flex-col items-center py-8 text-gray-400">
+                            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                                 <svg
-                                    width="48"
-                                    height="48"
-                                    fill="none"
+                                    width="24"
+                                    height="24"
                                     viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    className="text-green-600"
                                 >
-                                    <circle
-                                        cx="12"
-                                        cy="12"
-                                        r="10"
-                                        fill="#f3f4f6"
-                                    />
-                                    <path
-                                        d="M8 12h8M12 8v8"
-                                        stroke="#a1a1aa"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                    />
+                                    <line x1="12" y1="1" x2="12" y2="23" />
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                                 </svg>
-                                <div className="mt-2">Belum ada data</div>
                             </div>
-                        ) : (
-                            <div className="flex flex-col gap-3">
-                                {recentTaxes.map((t, i) => (
-                                    <div
-                                        key={i}
-                                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-4 rounded-lg border hover:shadow transition bg-gray-50 hover:bg-blue-50"
-                                    >
-                                        <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-2">
-                                            <span className="font-semibold text-blue-700 text-base">
-                                                {t.name}
-                                            </span>
-                                            <span className="text-xs text-gray-400">
-                                                •
-                                            </span>
-                                            <span className="text-sm text-gray-600">
-                                                {t.year}
-                                            </span>
-                                            <span className="text-xs text-gray-400">
-                                                •
-                                            </span>
-                                            <span className="text-sm font-mono text-gray-700">
-                                                Rp{" "}
-                                                {Number(t.total).toLocaleString(
-                                                    "id-ID"
-                                                )}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {t.status === "lunas" && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
-                                                    <svg
-                                                        width="16"
-                                                        height="16"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <circle
-                                                            cx="12"
-                                                            cy="12"
-                                                            r="10"
-                                                            fill="#dcfce7"
-                                                        />
-                                                        <path
-                                                            d="M8 12l2 2 4-4"
-                                                            stroke="#22c55e"
-                                                            strokeWidth="2"
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                        />
-                                                    </svg>
-                                                    Lunas
-                                                </span>
-                                            )}
-                                            {t.status === "belum_lunas" && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold">
-                                                    <svg
-                                                        width="16"
-                                                        height="16"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <circle
-                                                            cx="12"
-                                                            cy="12"
-                                                            r="10"
-                                                            fill="#fee2e2"
-                                                        />
-                                                        <path
-                                                            d="M15 9l-6 6M9 9l6 6"
-                                                            stroke="#ef4444"
-                                                            strokeWidth="2"
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                        />
-                                                    </svg>
-                                                    Belum Lunas
-                                                </span>
-                                            )}
-                                            {t.status === "proses" && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold">
-                                                    <svg
-                                                        width="16"
-                                                        height="16"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <circle
-                                                            cx="12"
-                                                            cy="12"
-                                                            r="10"
-                                                            fill="#fef9c3"
-                                                        />
-                                                        <path
-                                                            d="M12 8v4l2 2"
-                                                            stroke="#eab308"
-                                                            strokeWidth="2"
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                        />
-                                                    </svg>
-                                                    Proses
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                        </div>
                     </div>
-                    {/* Distribusi Status */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                        <div className="bg-green-50 rounded-xl shadow p-6 border flex flex-col gap-2">
-                            <div className="text-green-700 font-semibold">
-                                Lunas
+
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-slate-600">
+                                    Bulan Ini
+                                </p>
+                                <p className="text-2xl font-bold text-slate-900">
+                                    {loading ? "..." : stats.dataThisMonth}
+                                </p>
                             </div>
-                            <div className="text-2xl font-bold text-green-700">
-                                Rp {pajakLunas.toLocaleString("id-ID")}
-                            </div>
-                            <div className="text-sm text-green-700">
-                                {countLunas} data
+                            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                                <svg
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    className="text-purple-600"
+                                >
+                                    <rect
+                                        x="3"
+                                        y="4"
+                                        width="18"
+                                        height="18"
+                                        rx="2"
+                                        ry="2"
+                                    />
+                                    <line x1="16" y1="2" x2="16" y2="6" />
+                                    <line x1="8" y1="2" x2="8" y2="6" />
+                                    <line x1="3" y1="10" x2="21" y2="10" />
+                                </svg>
                             </div>
                         </div>
-                        <div className="bg-red-50 rounded-xl shadow p-6 border flex flex-col gap-2">
-                            <div className="text-red-700 font-semibold">
-                                Belum Lunas
+                    </div>
+
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-slate-600">
+                                    Rata-rata
+                                </p>
+                                <p className="text-2xl font-bold text-slate-900">
+                                    {loading
+                                        ? "..."
+                                        : stats.totalData > 0
+                                        ? `Rp ${Math.round(
+                                              stats.totalPajak / stats.totalData
+                                          ).toLocaleString("id-ID")}`
+                                        : "Rp 0"}
+                                </p>
                             </div>
-                            <div className="text-2xl font-bold text-red-700">
-                                Rp {pajakTunggakan.toLocaleString("id-ID")}
-                            </div>
-                            <div className="text-sm text-red-700">
-                                {countBelum} data
-                            </div>
-                        </div>
-                        <div className="bg-yellow-50 rounded-xl shadow p-6 border flex flex-col gap-2">
-                            <div className="text-yellow-700 font-semibold">
-                                Proses
-                            </div>
-                            <div className="text-2xl font-bold text-yellow-700">
-                                Rp{" "}
-                                {taxes
-                                    .filter((t) => t.status === "proses")
-                                    .reduce(
-                                        (sum, t) =>
-                                            sum + (Number(t.total) || 0),
-                                        0
-                                    )
-                                    .toLocaleString("id-ID")}
-                            </div>
-                            <div className="text-sm text-yellow-700">
-                                {countProses} data
+                            <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                                <svg
+                                    width="24"
+                                    height="24"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    className="text-orange-600"
+                                >
+                                    <line x1="18" y1="20" x2="18" y2="10" />
+                                    <line x1="12" y1="20" x2="12" y2="4" />
+                                    <line x1="6" y1="20" x2="6" y2="14" />
+                                </svg>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                {/* Quick Actions */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                    <div className="lg:col-span-2">
+                        <h2 className="text-xl font-bold text-slate-900 mb-6">
+                            Quick Actions
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Link
+                                href="/inputdata"
+                                className="group bg-gradient-to-r from-blue-600 to-blue-500 text-white p-6 rounded-2xl hover:from-blue-700 hover:to-blue-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <svg
+                                            width="24"
+                                            height="24"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                        >
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                            <polyline points="14,2 14,8 20,8" />
+                                            <line
+                                                x1="16"
+                                                y1="13"
+                                                x2="8"
+                                                y2="13"
+                                            />
+                                            <line
+                                                x1="16"
+                                                y1="17"
+                                                x2="8"
+                                                y2="17"
+                                            />
+                                            <polyline points="10,9 9,9 8,9" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-lg">
+                                            Input Data
+                                        </h3>
+                                        <p className="text-blue-100 text-sm">
+                                            Tambah data pajak baru
+                                        </p>
+                                    </div>
+                                </div>
+                            </Link>
+
+                            <Link
+                                href="/listingdata"
+                                className="group bg-gradient-to-r from-green-600 to-green-500 text-white p-6 rounded-2xl hover:from-green-700 hover:to-green-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <svg
+                                            width="24"
+                                            height="24"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                        >
+                                            <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-lg">
+                                            Kelola Data
+                                        </h3>
+                                        <p className="text-green-100 text-sm">
+                                            Lihat dan edit data
+                                        </p>
+                                    </div>
+                                </div>
+                            </Link>
+
+                            <Link
+                                href="/exportdata"
+                                className="group bg-gradient-to-r from-purple-600 to-purple-500 text-white p-6 rounded-2xl hover:from-purple-700 hover:to-purple-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <svg
+                                            width="24"
+                                            height="24"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                        >
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                            <polyline points="7,10 12,15 17,10" />
+                                            <line
+                                                x1="12"
+                                                y1="15"
+                                                x2="12"
+                                                y2="3"
+                                            />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-lg">
+                                            Export Data
+                                        </h3>
+                                        <p className="text-purple-100 text-sm">
+                                            Download laporan
+                                        </p>
+                                    </div>
+                                </div>
+                            </Link>
+
+                            <div className="group bg-gradient-to-r from-orange-600 to-orange-500 text-white p-6 rounded-2xl opacity-60 cursor-not-allowed">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                                        <svg
+                                            width="24"
+                                            height="24"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                        >
+                                            <line
+                                                x1="18"
+                                                y1="20"
+                                                x2="18"
+                                                y2="10"
+                                            />
+                                            <line
+                                                x1="12"
+                                                y1="20"
+                                                x2="12"
+                                                y2="4"
+                                            />
+                                            <line
+                                                x1="6"
+                                                y1="20"
+                                                x2="6"
+                                                y2="14"
+                                            />
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-lg">
+                                            Analytics
+                                        </h3>
+                                        <p className="text-orange-100 text-sm">
+                                            Coming soon
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* User Info */}
+                    <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                        <h2 className="text-xl font-bold text-slate-900 mb-4">
+                            Profile Info
+                        </h2>
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold">
+                                    {session?.user?.name?.[0] ||
+                                        session?.user?.email?.[0] ||
+                                        "U"}
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-slate-900">
+                                        {session?.user?.name || "User"}
+                                    </p>
+                                    <p className="text-sm text-slate-600">
+                                        {session?.user?.email}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="pt-4 border-t border-slate-200">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-600">Role</span>
+                                    <span className="font-medium text-slate-900 capitalize">
+                                        {session?.user?.role || "User"}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm mt-2">
+                                    <span className="text-slate-600">
+                                        Status
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                                        Active
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Recent Data */}
+                {stats.recentData && stats.recentData.length > 0 && (
+                    <div className="bg-white rounded-2xl shadow-premium border border-slate-200 overflow-hidden">
+                        <div className="px-8 py-6 border-b border-slate-200">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-xl font-bold text-slate-900">
+                                        Recent Data
+                                    </h2>
+                                    <p className="text-slate-600 mt-1">
+                                        Data terbaru yang ditambahkan
+                                    </p>
+                                </div>
+                                <Link
+                                    href="/listingdata"
+                                    className="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
+                                >
+                                    Lihat Semua →
+                                </Link>
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th className="text-left py-3 px-6 font-medium text-slate-700 text-sm">
+                                            Nama
+                                        </th>
+                                        <th className="text-left py-3 px-6 font-medium text-slate-700 text-sm">
+                                            NPWP
+                                        </th>
+                                        <th className="text-left py-3 px-6 font-medium text-slate-700 text-sm">
+                                            Jumlah Pajak
+                                        </th>
+                                        <th className="text-left py-3 px-6 font-medium text-slate-700 text-sm">
+                                            Tanggal
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {stats.recentData
+                                        .slice(0, 5)
+                                        .map((item, index) => (
+                                            <tr
+                                                key={item.id}
+                                                className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                                            >
+                                                <td className="py-4 px-6 font-medium text-slate-900">
+                                                    {item.nama}
+                                                </td>
+                                                <td className="py-4 px-6 text-slate-700 font-mono">
+                                                    {item.npwp}
+                                                </td>
+                                                <td className="py-4 px-6 text-slate-900 font-semibold">
+                                                    Rp{" "}
+                                                    {parseInt(
+                                                        item.jumlahPajak
+                                                    ).toLocaleString("id-ID")}
+                                                </td>
+                                                <td className="py-4 px-6 text-slate-600 text-sm">
+                                                    {new Date(
+                                                        item.createdAt
+                                                    ).toLocaleDateString(
+                                                        "id-ID"
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
             </div>
-            <Footer />
         </div>
     )
 }

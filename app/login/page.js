@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react"
 import { signIn, useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 export default function LoginPage() {
     const { data: session, status } = useSession()
@@ -24,221 +25,253 @@ export default function LoginPage() {
         setError("")
         setShowContactAdmin(false)
         setRedirecting(false)
-        const res = await signIn("credentials", {
-            email,
-            password,
-            redirect: false,
-        })
-        if (res.error) {
-            if (res.error === "redirect-register") {
-                setError(
-                    "Email belum terdaftar. Anda akan diarahkan ke halaman pendaftaran..."
-                )
-                setRedirecting(true)
-                setTimeout(() => {
-                    router.push("/register")
-                }, 4000)
-                return
+
+        // Add loading state
+        const submitButton = e.target.querySelector('button[type="submit"]')
+        const originalText = submitButton.textContent
+        submitButton.textContent = "Signing in..."
+        submitButton.disabled = true
+
+        try {
+            const res = await signIn("credentials", {
+                email,
+                password,
+                redirect: false,
+            })
+
+            if (res.error) {
+                if (res.error === "redirect-register") {
+                    setError(
+                        "Email belum terdaftar. Anda akan diarahkan ke halaman pendaftaran..."
+                    )
+                    setRedirecting(true)
+                    setTimeout(() => {
+                        router.push("/register")
+                    }, 2000) // Reduced from 4s to 2s
+                    return
+                }
+                if (res.error === "nonaktif") {
+                    setError(
+                        "Akun Anda nonaktif. Silakan hubungi admin atau kirim pesan ke admin."
+                    )
+                    setShowContactAdmin(true)
+                    return
+                }
+                if (res.error === "wrong-credentials") {
+                    setError("Email atau password salah.")
+                    return
+                }
+                if (res.error.includes("timeout")) {
+                    setError("Koneksi timeout. Silakan coba lagi.")
+                    return
+                }
+                setError("Login gagal. Silakan coba lagi.")
+            } else {
+                // Immediate redirect without waiting
+                router.replace("/dashboard")
             }
-            if (res.error === "nonaktif") {
-                setError(
-                    "Akun Anda nonaktif. Silakan hubungi admin atau kirim pesan ke admin."
-                )
-                setShowContactAdmin(true)
-                return
-            }
-            if (res.error === "wrong-credentials") {
-                setError("Email atau password salah")
-                return
-            }
-            setError(res.error)
-        } else {
-            router.push("/dashboard")
+        } catch (error) {
+            setError("Terjadi kesalahan koneksi. Silakan coba lagi.")
+        } finally {
+            // Reset button state
+            submitButton.textContent = originalText
+            submitButton.disabled = false
         }
     }
 
-    return (
-        <div className="min-h-screen flex flex-col bg-gray-50">
-            <div className="flex-grow flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-300">
-                <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md flex flex-col items-center animate-fadeIn">
-                    <div className="mb-6 flex flex-col items-center">
-                        <div className="bg-blue-600 rounded-full p-3 mb-2 shadow-lg">
-                            <svg
-                                width="32"
-                                height="32"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    fill="#fff"
-                                    d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 3a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm0 14.2a7.2 7.2 0 0 1-6-3.2c.03-2 4-3.1 6-3.1 2 0 5.97 1.1 6 3.1a7.2 7.2 0 0 1-6 3.2Z"
-                                />
-                            </svg>
-                        </div>
-                        <h2 className="text-3xl font-extrabold text-blue-700 mb-1 tracking-tight">
-                            Login Pajak
-                        </h2>
-                        <p className="text-gray-500 text-sm">
-                            Masuk untuk mengelola rekap pajak tahunan Anda
-                        </p>
-                    </div>
-                    <form
-                        onSubmit={handleSubmit}
-                        className="w-full flex flex-col gap-4"
-                    >
-                        {error && (
-                            <div
-                                className={`text-center text-sm mb-2 ${
-                                    redirecting
-                                        ? "text-blue-600"
-                                        : "text-red-500"
-                                }`}
-                            >
-                                {error}
-                                {showContactAdmin && (
-                                    <div className="mt-2">
-                                        <a
-                                            href="mailto:iqbaldev.site@gmail.com"
-                                            className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 font-semibold text-xs mt-1"
-                                        >
-                                            Kirim Pesan ke Admin
-                                        </a>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                        <div>
-                            <label className="block mb-1 text-sm font-medium text-gray-700">
-                                Email
-                            </label>
-                            <input
-                                type="email"
-                                placeholder="Email"
-                                className="input text-black"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block mb-1 text-sm font-medium text-gray-700">
-                                Password
-                            </label>
-                            <div className="relative">
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    placeholder="Password"
-                                    className="input text-black pr-12"
-                                    value={password}
-                                    onChange={(e) =>
-                                        setPassword(e.target.value)
-                                    }
-                                    required
-                                />
-                                <button
-                                    type="button"
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 text-sm px-2 focus:outline-none"
-                                    onClick={() =>
-                                        setShowPassword((prev) => !prev)
-                                    }
-                                    tabIndex={-1}
-                                    aria-label={
-                                        showPassword
-                                            ? "Sembunyikan password"
-                                            : "Tampilkan password"
-                                    }
-                                >
-                                    {showPassword ? (
-                                        // Mata dicoret (hide)
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            width="20"
-                                            height="20"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                stroke="currentColor"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth="2"
-                                                d="M3 3l18 18M10.7 10.7A2 2 0 0 0 12 14a2 2 0 0 0 1.3-3.3m-2.6 0A2 2 0 0 1 12 10a2 2 0 0 1 2 2c0 .37-.1.72-.3 1.02m-2.6-2.32C7.1 11.13 5.06 13.06 4 14c2.5 2.5 6.5 2.5 9 0 .41-.41.77-.86 1.08-1.32m2.12-2.12C18.94 13.06 16.9 15 15 16c-2.5 2.5-6.5 2.5-9 0C5.06 13.06 7.1 11.13 9 10c.41-.41.86-.77 1.32-1.08"
-                                            />
-                                        </svg>
-                                    ) : (
-                                        // Mata terbuka (show)
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            width="20"
-                                            height="20"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                stroke="currentColor"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth="2"
-                                                d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Zm11-3a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"
-                                            />
-                                        </svg>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-                        <button
-                            type="submit"
-                            className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold shadow hover:bg-blue-700 transition-all duration-200"
-                        >
-                            Login
-                        </button>
-                        <a
-                            href="/forgot-password"
-                            className="text-blue-600 text-center text-sm hover:underline mt-2"
-                        >
-                            Lupa Password?
-                        </a>
-                    </form>
-                    <p className="mt-6 text-center text-sm text-gray-600">
-                        Belum punya akun?{" "}
-                        <a
-                            href="/register"
-                            className="text-blue-600 hover:underline font-medium"
-                        >
-                            Daftar
-                        </a>
+    if (status === "loading") {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        )
+    }
+
+    if (status === "authenticated") {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-slate-600">
+                        Mengalihkan ke dashboard...
                     </p>
                 </div>
             </div>
-            <style jsx>{`
-                .input {
-                    width: 100%;
-                    padding: 0.75rem;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 0.5rem;
-                    outline: none;
-                    font-size: 1rem;
-                    background: #f9fafb;
-                    transition: border 0.2s;
-                }
-                .input:focus {
-                    border-color: #2563eb;
-                    background: #fff;
-                }
-                @keyframes fadeIn {
-                    from {
-                        opacity: 0;
-                        transform: translateY(20px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-                .animate-fadeIn {
-                    animation: fadeIn 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
-                }
-            `}</style>
+        )
+    }
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
+            <div className="max-w-md w-full">
+                {/* Header */}
+                <div className="text-center mb-8">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl mb-4">
+                        <svg
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill="white"
+                        >
+                            <circle cx="12" cy="12" r="10" />
+                            <path
+                                d="M12 6v6l4 2"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                            />
+                        </svg>
+                    </div>
+                    <h1 className="text-2xl font-bold text-slate-900 mb-2">
+                        Welcome Back
+                    </h1>
+                    <p className="text-slate-600">
+                        Sign in to access your tax management dashboard
+                    </p>
+                </div>
+
+                {/* Login Form */}
+                <div className="bg-white rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
+                    <div className="p-8">
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div>
+                                <label
+                                    htmlFor="email"
+                                    className="block text-sm font-semibold text-slate-700 mb-2"
+                                >
+                                    Email Address
+                                </label>
+                                <input
+                                    id="email"
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    placeholder="Enter your email"
+                                />
+                            </div>
+
+                            <div>
+                                <label
+                                    htmlFor="password"
+                                    className="block text-sm font-semibold text-slate-700 mb-2"
+                                >
+                                    Password
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        id="password"
+                                        type={
+                                            showPassword ? "text" : "password"
+                                        }
+                                        value={password}
+                                        onChange={(e) =>
+                                            setPassword(e.target.value)
+                                        }
+                                        required
+                                        className="w-full px-4 py-3 pr-12 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                        placeholder="Enter your password"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setShowPassword(!showPassword)
+                                        }
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                                    >
+                                        {showPassword ? (
+                                            <svg
+                                                width="20"
+                                                height="20"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                            >
+                                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                                                <line
+                                                    x1="1"
+                                                    y1="1"
+                                                    x2="23"
+                                                    y2="23"
+                                                />
+                                            </svg>
+                                        ) : (
+                                            <svg
+                                                width="20"
+                                                height="20"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                            >
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                                <circle cx="12" cy="12" r="3" />
+                                            </svg>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {error && (
+                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                                    {error}
+                                </div>
+                            )}
+
+                            {redirecting && (
+                                <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-xl text-sm">
+                                    Redirecting to registration...
+                                </div>
+                            )}
+
+                            <button
+                                type="submit"
+                                className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white py-3 px-4 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+                            >
+                                Sign In
+                            </button>
+                        </form>
+
+                        <div className="mt-6 text-center">
+                            <Link
+                                href="/forgot-password"
+                                className="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
+                            >
+                                Forgot your password?
+                            </Link>
+                        </div>
+
+                        {showContactAdmin && (
+                            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                                <p className="text-yellow-800 text-sm text-center">
+                                    Need help? Contact your administrator for
+                                    account activation.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="px-8 py-6 bg-slate-50 border-t border-slate-200">
+                        <p className="text-center text-sm text-slate-600">
+                            Don't have an account?{" "}
+                            <Link
+                                href="/register"
+                                className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+                            >
+                                Sign up here
+                            </Link>
+                        </p>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="text-center mt-8">
+                    <p className="text-xs text-slate-500">
+                        © 2024 PajakApp. Professional Tax Management System.
+                    </p>
+                </div>
+            </div>
         </div>
     )
 }

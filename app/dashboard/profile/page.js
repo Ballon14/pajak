@@ -1,329 +1,304 @@
 "use client"
-import { useSession, signIn } from "next-auth/react"
-import { useState, useRef } from "react"
+import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import Navbar, { Footer } from "../../components/Navbar"
+import { useState } from "react"
 
 export default function ProfilePage() {
-    const { data: session, status, update } = useSession()
+    const { data: session, status } = useSession()
     const router = useRouter()
-    const [form, setForm] = useState({
+    const [isEditing, setIsEditing] = useState(false)
+    const [formData, setFormData] = useState({
         name: session?.user?.name || "",
         email: session?.user?.email || "",
-        image: session?.user?.image || "",
     })
-    const [avatar, setAvatar] = useState(null)
-    const [preview, setPreview] = useState(form.image || "")
-    const [error, setError] = useState("")
-    const [success, setSuccess] = useState("")
-    const [loading, setLoading] = useState(false)
-    const [editMode, setEditMode] = useState(false)
-    const [newPassword, setNewPassword] = useState("")
-    const [confirmPassword, setConfirmPassword] = useState("")
-    const [pwLoading, setPwLoading] = useState(false)
-    const [pwError, setPwError] = useState("")
-    const [pwSuccess, setPwSuccess] = useState("")
-    const fileInputRef = useRef()
-
-    const avatarOptions = Array.from(
-        { length: 10 },
-        (_, i) => `/avatar/avatar${i + 1}.svg`
-    )
 
     if (status === "loading") {
         return (
-            <div className="min-h-screen flex flex-col bg-gray-50">
-                <Navbar />
-                <div className="flex-grow flex items-center justify-center">
-                    <div className="text-blue-700 font-bold text-lg">
-                        Memuat data...
-                    </div>
-                </div>
-                <Footer />
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
         )
     }
+
     if (status === "unauthenticated") {
-        if (typeof window !== "undefined") router.push("/login")
+        router.push("/login")
         return null
     }
 
-    const handleChange = (e) => {
-        setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
+    const handleSave = async () => {
+        // TODO: Implement profile update API
+        setIsEditing(false)
     }
 
-    const handleAvatarChange = (e) => {
-        const file = e.target.files[0]
-        if (!file) return
-        setAvatar(file)
-        setPreview(URL.createObjectURL(file))
-    }
-
-    async function handleSubmit(e) {
-        e.preventDefault()
-        setError("")
-        setSuccess("")
-        setLoading(true)
-        if (newPassword || confirmPassword) {
-            if (newPassword.length < 6) {
-                setError("Password minimal 6 karakter")
-                setLoading(false)
-                return
-            }
-            if (newPassword !== confirmPassword) {
-                setError("Konfirmasi password tidak cocok")
-                setLoading(false)
-                return
-            }
-        }
-        let imageUrl = form.image
-        // Upload avatar jika ada file baru
-        if (avatar) {
-            const data = new FormData()
-            data.append("file", avatar)
-            const res = await fetch("/api/upload-avatar", {
-                method: "POST",
-                body: data,
-            })
-            const result = await res.json()
-            if (!res.ok) {
-                setError(result.error || "Gagal upload avatar")
-                setLoading(false)
-                return
-            }
-            imageUrl = result.url
-        }
-        // Update profile
-        const res = await fetch("/api/user/update", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                ...form,
-                image: imageUrl,
-                password: newPassword || undefined,
-            }),
-        })
-        const result = await res.json()
-        if (!res.ok) {
-            setError(result.error || "Gagal update profile")
-            setLoading(false)
-            return
-        }
-        setSuccess("Profile berhasil diperbarui!")
-        setLoading(false)
-        setForm((f) => ({ ...f, image: imageUrl }))
-        setEditMode(false)
-        update({ user: { ...form, image: imageUrl } })
-    }
-
-    async function handlePasswordChange(e) {
-        e.preventDefault()
-        setPwError("")
-        setPwSuccess("")
-        setPwLoading(true)
-        if (!newPassword || !confirmPassword) {
-            setPwError("Password baru dan konfirmasi wajib diisi")
-            setPwLoading(false)
-            return
-        }
-        if (newPassword.length < 6) {
-            setPwError("Password minimal 6 karakter")
-            setPwLoading(false)
-            return
-        }
-        if (newPassword !== confirmPassword) {
-            setPwError("Konfirmasi password tidak cocok")
-            setPwLoading(false)
-            return
-        }
-        // Kirim ke endpoint khusus ganti password
-        const res = await fetch("/api/user/update", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ password: newPassword }),
-        })
-        const result = await res.json()
-        if (!res.ok) {
-            setPwError(result.error || "Gagal ganti password")
-            setPwLoading(false)
-            return
-        }
-        setPwSuccess("Password berhasil diganti!")
-        setPwLoading(false)
-        setNewPassword("")
-        setConfirmPassword("")
+    const handleSignOut = () => {
+        signOut({ callbackUrl: "https://pajak.iqbaldev.site" })
     }
 
     return (
-        <div className="min-h-screen flex flex-col bg-gray-50">
-            <Navbar />
-            <div className="flex-grow flex items-center justify-center p-4">
-                <div className="w-full max-w-md bg-white rounded-xl shadow p-8 border border-blue-200">
-                    <h2 className="text-2xl font-bold text-blue-700 mb-6 text-center">
-                        Profile
-                    </h2>
-                    {!editMode ? (
-                        <div className="flex flex-col items-center gap-4 p-6 rounded-xl border border-blue-100 shadow bg-white">
-                            <div className="text-lg font-semibold text-gray-500 mb-1">
-                                Avatar
+        <div className="p-8">
+            <div className="max-w-2xl mx-auto">
+                {/* Header */}
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-slate-900 mb-2">
+                        Profile Settings
+                    </h1>
+                    <p className="text-slate-600">
+                        Manage your account settings and preferences
+                    </p>
+                </div>
+
+                {/* Profile Card */}
+                <div className="bg-white rounded-2xl shadow-premium border border-slate-200 overflow-hidden">
+                    {/* Profile Header */}
+                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-12 text-white">
+                        <div className="flex items-center gap-6">
+                            <div className="w-24 h-24 bg-white/20 rounded-2xl flex items-center justify-center text-white font-bold text-3xl backdrop-blur-sm">
+                                {session?.user?.name?.[0] ||
+                                    session?.user?.email?.[0] ||
+                                    "U"}
                             </div>
-                            <div className="relative mb-2">
-                                <img
-                                    src={form.image || "/window.svg"}
-                                    alt="Avatar"
-                                    className="w-24 h-24 rounded-full object-cover border-4 border-blue-200 shadow"
-                                />
-                                {!form.image && (
-                                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full mt-1">
-                                        Belum upload avatar
-                                    </span>
-                                )}
-                            </div>
-                            <div className="w-full flex flex-col items-center gap-2">
-                                <div className="text-xs text-gray-400 uppercase tracking-wider">
-                                    Nama
-                                </div>
-                                <div className="text-lg font-bold text-blue-700">
-                                    {form.name}
-                                </div>
-                            </div>
-                            <div className="w-full flex flex-col items-center gap-2">
-                                <div className="text-xs text-gray-400 uppercase tracking-wider">
-                                    Email
-                                </div>
-                                <div className="text-base text-gray-700">
-                                    {form.email}
-                                </div>
-                            </div>
-                            <div className="w-full border-t border-gray-200 my-4"></div>
-                            <button
-                                className="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200"
-                                onClick={() => setEditMode(true)}
-                            >
-                                Edit Profile
-                            </button>
-                            <a
-                                href="/forgot-password"
-                                className="mt-2 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 text-center"
-                            >
-                                Reset Password
-                            </a>
-                        </div>
-                    ) : (
-                        <form
-                            onSubmit={handleSubmit}
-                            className="flex flex-col gap-5"
-                        >
-                            <div className="flex flex-col items-center gap-2 mb-2">
-                                <div className="relative mb-4">
-                                    <img
-                                        src={preview || "/window.svg"}
-                                        alt="Avatar"
-                                        className="w-24 h-24 rounded-full object-cover border-4 border-blue-200 shadow"
-                                    />
-                                </div>
-                                <div className="grid grid-cols-5 gap-3 mb-3">
-                                    {avatarOptions.map((url, idx) => (
-                                        <button
-                                            type="button"
-                                            key={url}
-                                            className={`rounded-full border-2 p-0.5 transition-all ${
-                                                preview === url
-                                                    ? "border-blue-600 ring-2 ring-blue-200"
-                                                    : "border-transparent"
-                                            }`}
-                                            onClick={() => {
-                                                setPreview(url)
-                                                setAvatar(null)
-                                                setForm((f) => ({
-                                                    ...f,
-                                                    image: url,
-                                                }))
-                                            }}
-                                            aria-label={`Pilih avatar ${
-                                                idx + 1
-                                            }`}
-                                        >
-                                            <img
-                                                src={url}
-                                                alt={`Avatar ${idx + 1}`}
-                                                className="w-12 h-12 rounded-full object-cover"
-                                            />
-                                        </button>
-                                    ))}
-                                </div>
-                                <span className="text-xs text-gray-400 mb-2">
-                                    Pilih salah satu avatar di bawah.
+                            <div>
+                                <h2 className="text-2xl font-bold mb-2">
+                                    {session?.user?.name || "User"}
+                                </h2>
+                                <p className="text-blue-100 mb-1">
+                                    {session?.user?.email}
+                                </p>
+                                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white/20 text-white text-sm font-medium">
+                                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                    {session?.user?.role === "admin"
+                                        ? "Administrator"
+                                        : "User"}
                                 </span>
                             </div>
-                            <label className="font-semibold text-gray-700 flex flex-col gap-2">
-                                Nama
-                                <input
-                                    className="input bg-white border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-base h-11 px-3 transition-all duration-200 shadow-sm"
-                                    name="name"
-                                    value={form.name}
-                                    onChange={handleChange}
-                                    required
-                                    placeholder="Nama lengkap"
-                                />
-                            </label>
-                            <label className="font-semibold text-gray-700 flex flex-col gap-2">
-                                Email
-                                <input
-                                    className="input bg-white border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-base h-11 px-3 transition-all duration-200 shadow-sm"
-                                    name="email"
-                                    type="email"
-                                    value={form.email}
-                                    onChange={handleChange}
-                                    required
-                                    placeholder="Email"
-                                />
-                            </label>
-                            {error && (
-                                <div className="text-red-500 text-center text-sm">
-                                    {error}
+                        </div>
+                    </div>
+
+                    {/* Profile Content */}
+                    <div className="p-8">
+                        <div className="space-y-6">
+                            {/* Personal Information */}
+                            <div>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-semibold text-slate-900">
+                                        Personal Information
+                                    </h3>
+                                    <button
+                                        onClick={() => setIsEditing(!isEditing)}
+                                        className="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors"
+                                    >
+                                        {isEditing ? "Cancel" : "Edit"}
+                                    </button>
                                 </div>
-                            )}
-                            {success && (
-                                <div className="text-green-600 text-center text-sm">
-                                    {success}
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                                            Full Name
+                                        </label>
+                                        {isEditing ? (
+                                            <input
+                                                type="text"
+                                                value={formData.name}
+                                                onChange={(e) =>
+                                                    setFormData({
+                                                        ...formData,
+                                                        name: e.target.value,
+                                                    })
+                                                }
+                                                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                            />
+                                        ) : (
+                                            <div className="w-full px-4 py-3 bg-slate-50 rounded-xl text-slate-900">
+                                                {session?.user?.name ||
+                                                    "Not set"}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                                            Email Address
+                                        </label>
+                                        <div className="w-full px-4 py-3 bg-slate-50 rounded-xl text-slate-900 font-mono">
+                                            {session?.user?.email}
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            Email cannot be changed
+                                        </p>
+                                    </div>
                                 </div>
-                            )}
-                            <div className="flex gap-2 mt-2">
-                                <button
-                                    type="submit"
-                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-                                    disabled={loading}
-                                >
-                                    {loading
-                                        ? "Menyimpan..."
-                                        : "Simpan Profile"}
-                                </button>
-                                <button
-                                    type="button"
-                                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-lg transition-colors duration-200"
-                                    onClick={() => {
-                                        setEditMode(false)
-                                        setForm({
-                                            name: session?.user?.name || "",
-                                            email: session?.user?.email || "",
-                                            image: session?.user?.image || "",
-                                        })
-                                        setPreview(session?.user?.image || "")
-                                        setAvatar(null)
-                                        setError("")
-                                        setSuccess("")
-                                    }}
-                                    disabled={loading}
-                                >
-                                    Batal
-                                </button>
+
+                                {isEditing && (
+                                    <div className="flex gap-3 mt-6">
+                                        <button
+                                            onClick={handleSave}
+                                            className="bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+                                        >
+                                            Save Changes
+                                        </button>
+                                        <button
+                                            onClick={() => setIsEditing(false)}
+                                            className="px-6 py-3 border border-slate-300 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-all duration-200"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                )}
                             </div>
-                        </form>
-                    )}
+
+                            {/* Account Information */}
+                            <div className="pt-6 border-t border-slate-200">
+                                <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                                    Account Information
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                                            User ID
+                                        </label>
+                                        <div className="w-full px-4 py-3 bg-slate-50 rounded-xl text-slate-900 font-mono text-sm">
+                                            {session?.user?.id || "N/A"}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                                            Account Type
+                                        </label>
+                                        <div className="w-full px-4 py-3 bg-slate-50 rounded-xl">
+                                            <span
+                                                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${
+                                                    session?.user?.role ===
+                                                    "admin"
+                                                        ? "bg-purple-100 text-purple-700"
+                                                        : "bg-blue-100 text-blue-700"
+                                                }`}
+                                            >
+                                                {session?.user?.role ===
+                                                "admin" ? (
+                                                    <svg
+                                                        width="16"
+                                                        height="16"
+                                                        viewBox="0 0 24 24"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2"
+                                                    >
+                                                        <path d="M12 1l3 6 6 1-3 6-6 1-3-6-6-1 3-6z" />
+                                                    </svg>
+                                                ) : (
+                                                    <svg
+                                                        width="16"
+                                                        height="16"
+                                                        viewBox="0 0 24 24"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2"
+                                                    >
+                                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                                        <circle
+                                                            cx="12"
+                                                            cy="7"
+                                                            r="4"
+                                                        />
+                                                    </svg>
+                                                )}
+                                                {session?.user?.role === "admin"
+                                                    ? "Administrator"
+                                                    : "Standard User"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Security Section */}
+                            <div className="pt-6 border-t border-slate-200">
+                                <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                                    Security
+                                </h3>
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                                        <div>
+                                            <div className="font-medium text-slate-900">
+                                                Password
+                                            </div>
+                                            <div className="text-sm text-slate-600">
+                                                Last updated: Not available
+                                            </div>
+                                        </div>
+                                        <button className="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors">
+                                            Change Password
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                                        <div>
+                                            <div className="font-medium text-slate-900">
+                                                Two-Factor Authentication
+                                            </div>
+                                            <div className="text-sm text-slate-600">
+                                                Add an extra layer of security
+                                            </div>
+                                        </div>
+                                        <button className="text-blue-600 hover:text-blue-700 font-medium text-sm transition-colors">
+                                            Enable 2FA
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Danger Zone */}
+                            <div className="pt-6 border-t border-red-200">
+                                <h3 className="text-lg font-semibold text-red-900 mb-4">
+                                    Danger Zone
+                                </h3>
+                                <div className="space-y-4">
+                                    <div className="p-4 border border-red-200 bg-red-50 rounded-xl">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <div className="font-medium text-red-900">
+                                                    Sign Out
+                                                </div>
+                                                <div className="text-sm text-red-600">
+                                                    Sign out from this account
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={handleSignOut}
+                                                className="bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors"
+                                            >
+                                                Sign Out
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-4 border border-red-200 bg-red-50 rounded-xl opacity-60">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <div className="font-medium text-red-900">
+                                                    Delete Account
+                                                </div>
+                                                <div className="text-sm text-red-600">
+                                                    Permanently delete your
+                                                    account and all data
+                                                </div>
+                                            </div>
+                                            <button
+                                                disabled
+                                                className="bg-red-600 text-white px-4 py-2 rounded-lg font-medium opacity-50 cursor-not-allowed"
+                                            >
+                                                Delete Account
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <Footer />
         </div>
     )
 }
